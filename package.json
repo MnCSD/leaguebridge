@@ -1,0 +1,36 @@
+{
+  "name": "league-remote",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "bridge": "tsx packages/bridge-core/src/cli.ts",
+    "bridge:auto": "tsx packages/bridge-core/src/cli.ts --auto-accept",
+    "bridge:fake": "tsx packages/bridge-core/src/cli.ts --league-path .fake-league --no-record",
+    "bridge:fake:auto": "tsx packages/bridge-core/src/cli.ts --league-path .fake-league --no-record --auto-accept",
+    "mock": "tsx packages/bridge-core/src/cli.ts --mock",
+    "phone-sim": "tsx packages/bridge-core/src/tools/phone-sim.ts",
+    "make-fixture": "tsx packages/bridge-core/src/tools/make-fixture.ts",
+    "fake-lcu": "tsx packages/bridge-core/src/tools/fake-lcu.ts",
+    "sanitize": "tsx packages/bridge-core/src/tools/sanitize.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "desktop": "npm run dev -w apps/desktop",
+    "desktop:fake": "npm run dev:fake -w apps/desktop",
+    "desktop:build": "npm run build -w apps/desktop",
+    "typecheck": "tsc -p packages/protocol --noEmit && tsc -p packages/bridge-core --noEmit && tsc -p apps/desktop --noEmit"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "@types/ws": "^8.18.2",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^5.1.0"
+  }
+}

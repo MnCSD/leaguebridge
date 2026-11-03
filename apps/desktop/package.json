@@ -1,0 +1,38 @@
+{
+  "name": "@league-remote/desktop",
+  "productName": "League Remote",
+  "version": "0.1.0",
+  "private": true,
+  "description": "League Remote PC bridge with window and tray",
+  "main": "out/main/index.js",
+  "scripts": {
+    "dev": "node scripts/electron-vite.mjs dev",
+    "dev:fake": "node scripts/electron-vite.mjs dev -- --league-path ../../.fake-league",
+    "build": "node scripts/electron-vite.mjs build",
+    "start": "node scripts/electron-vite.mjs preview",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "icons": "node -e \"delete process.env.ELECTRON_RUN_AS_NODE; require('child_process').spawnSync(require('electron'), ['scripts/render-icon.cjs'], { stdio: 'inherit', env: process.env })\""
+  },
+  "dependencies": {
+    "@league-remote/bridge-core": "*",
+    "@league-remote/protocol": "*",
+    "pino": "^10.4.0",
+    "qrcode": "^1.5.4",
+    "ws": "^8.22.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@fontsource/barlow": "^5.3.0",
+    "@fontsource/cinzel": "^5.3.0",
+    "@tailwindcss/vite": "^4.3.4",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.2.1",
+    "electron": "^45.2.1",
+    "electron-vite": "^6.0.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "tailwindcss": "^4.3.4",
+    "vite": "^8.3.5"
+  }
+}

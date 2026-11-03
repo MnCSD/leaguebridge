@@ -1,0 +1,14 @@
+node_modules/
+dist/
+out/
+apps/desktop/out/
+*.log
+
+# Recordings contain your account data (summoner names, friends, match info). Keep them local.
+recordings/
+
+# Lockfile written by the fake League client (npm run fake-lcu)
+.fake-league/
+
+.env
+.DS_Store

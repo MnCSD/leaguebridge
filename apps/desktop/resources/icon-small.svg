@@ -1,0 +1,18 @@
+<!-- Simplified icon for 16-32 px (tray, small taskbar): bolder strokes, no fine details. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="bg" x1="0.1" y1="0" x2="0.9" y2="1">
+      <stop offset="0" stop-color="#22395C"/>
+      <stop offset="1" stop-color="#08101C"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F2DDA8"/>
+      <stop offset="1" stop-color="#B8975A"/>
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="60" height="60" rx="15" fill="url(#bg)"/>
+  <rect x="2.75" y="2.75" width="58.5" height="58.5" rx="14.25" fill="none" stroke="#FFFFFF" stroke-opacity="0.14" stroke-width="1.5"/>
+  <rect x="15" y="12" width="24" height="40" rx="6" fill="#0D1A2C" stroke="url(#gold)" stroke-width="4"/>
+  <path d="M27 24 33 32 27 40 21 32z" fill="#0AC8B9"/>
+  <path d="M45 24a11 11 0 0 1 0 16" fill="none" stroke="#0AC8B9" stroke-width="4" stroke-linecap="round"/>
+</svg>

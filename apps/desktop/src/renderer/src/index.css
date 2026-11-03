@@ -1,0 +1,157 @@
+/* Fonts are bundled from npm (@fontsource), so the app works offline. */
+@import '@fontsource/cinzel/700.css';
+@import '@fontsource/barlow/400.css';
+@import '@fontsource/barlow/500.css';
+@import '@fontsource/barlow/600.css';
+@import 'tailwindcss';
+
+/* Palette from the design, as Tailwind tokens: bg-navy, text-gold, border-line, ... */
+@theme {
+  --color-navy: #070d17;
+  --color-surface: #0d1623;
+  --color-raised: #131d2c;
+  --color-line: rgb(255 255 255 / 0.07);
+  --color-line-strong: rgb(255 255 255 / 0.13);
+  --color-gold: #c8aa6e;
+  --color-gold-dark: #785a28;
+  --color-teal: #0ac8b9;
+  --color-teal-light: #5fe3d8;
+  --color-cream: #f0e6d2;
+  --color-muted: #8f98a8;
+  --color-faint: #5b6678;
+  --color-danger: #f0566c;
+
+  --font-display: Cinzel, Georgia, serif;
+  --font-body: Barlow, 'Segoe UI', sans-serif;
+
+  --animate-rise: rise 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  --animate-spin-slow: spin 2.2s linear infinite;
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+    margin: 0;
+    overflow: hidden;
+    background: var(--color-navy);
+  }
+  body {
+    color: var(--color-cream);
+    font-family: var(--font-body);
+    line-height: normal;
+    user-select: none;
+    -webkit-font-smoothing: antialiased;
+  }
+  button {
+    cursor: pointer;
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-teal);
+    outline-offset: 2px;
+  }
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-line-strong);
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-button {
+    display: none;
+  }
+}
+
+/* One soft light from the top, nothing else. */
+.backdrop {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(700px 360px at 30% -10%, rgb(10 200 185 / 0.07), transparent 70%),
+    radial-gradient(600px 400px at 100% 110%, rgb(200 170 110 / 0.05), transparent 70%),
+    var(--color-navy);
+}
+
+/* Cards: soft surface, hairline border, gentle shadow. */
+.card {
+  background: linear-gradient(180deg, rgb(19 29 44 / 0.9), rgb(13 22 35 / 0.9));
+  border: 1px solid var(--color-line);
+  border-radius: 12px;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.03),
+    0 10px 30px -18px rgb(0 0 0 / 0.8);
+}
+
+/* iOS-style switch. */
+.toggle {
+  position: relative;
+  width: 38px;
+  height: 22px;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.1);
+  transition: background 0.2s;
+}
+.toggle .knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: #e9edf3;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.4);
+  transition: left 0.2s cubic-bezier(0.3, 1.3, 0.5, 1);
+}
+.toggle[aria-pressed='true'] {
+  background: var(--color-teal);
+}
+.toggle[aria-pressed='true'] .knob {
+  left: 18px;
+}
+.toggle:hover {
+  filter: brightness(1.12);
+}
+
+/* Soft pulse behind a status dot. */
+.live-dot {
+  position: relative;
+}
+.live-dot::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: inherit;
+  animation: ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes ping {
+  75%,
+  100% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+}
+
+/* Respect "reduce motion" in Windows settings. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
