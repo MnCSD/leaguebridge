@@ -194,6 +194,7 @@ interface RawCsSession {
   hasSimultaneousPicks?: boolean;
   hasSimultaneousBans?: boolean;
   allowSkinSelection?: boolean;
+  disallowBanningTeammateHoveredChampions?: boolean;
 }
 interface RawSkin {
   id: number;
@@ -385,6 +386,7 @@ function buildChampSelect(cache: LcuCache): ChampSelect | null {
     bannableChampionIds: ids(cache.bannable?.data),
     disabledChampionIds: ids(cache.disabled?.data) ?? [],
     allowSkinSelection: s.allowSkinSelection ?? true,
+    banTeammateHoversBlocked: !!s.disallowBanningTeammateHoveredChampions,
     skins: Array.isArray(skins) ? skins.map(toSkin) : [],
   };
 }

@@ -7,7 +7,8 @@
  *  - WAMP: accepts [5,"OnJsonApiEvent"], sends [8,"OnJsonApiEvent",{uri,eventType,data}]
  *  - ready check: `timer` counts up once per second, the pop lasts 12s, accept/decline endpoints
  *
- * Only the gameflow phase and ready check are simulated so far. Champ select comes with M3/M5.
+ * Simulates: gameflow phase, ready check, lobby, summoner lookups, champion select and rune pages
+ * (the last two in fakeChampSelect.ts).
  */
 import { randomBytes } from 'node:crypto';
 import { mkdir, unlink, writeFile } from 'node:fs/promises';
@@ -19,6 +20,7 @@ import { generate } from 'selfsigned';
 import { WebSocketServer, type WebSocket } from 'ws';
 import { PHASE_URI } from '../gameflow/phase';
 import { READY_CHECK_URI, type ReadyCheck } from '../gameflow/autoAccept';
+import { FakeChampSelect } from './fakeChampSelect';
 
 export interface FakeLcuOptions {
   /** Folder to write the lockfile into. Point the bridge's --league-path here. */
@@ -74,7 +76,7 @@ export class FakeLcu {
     this.password = randomBytes(16).toString('base64url');
     const { key, cert } = await certificate();
 
-    const server = https.createServer({ key, cert }, (req, res) => this.handleHttp(req, res));
+    const server = https.createServer({ key, cert }, (req, res) => void this.handleHttp(req, res));
     const wss = new WebSocketServer({
       server,
       verifyClient: (info: { req: IncomingMessage }) => this.authorized(info.req),
@@ -208,6 +210,14 @@ export class FakeLcu {
     this.emit('/lol-lobby/v2/lobby', 'Update', this.lobby);
   }
 
+  /** Champion select + rune pages (see fakeChampSelect.ts). */
+  readonly champ = new FakeChampSelect(
+    (uri, type, data) => this.emit(uri, type, data),
+    (phase) => this.setPhase(phase),
+  );
+  /** Request bodies the bridge sent, in order. Handy in tests. */
+  readonly bodies: { route: string; body: unknown }[] = [];
+
   static readonly ME = { puuid: 'me-puuid', gameName: 'FakeMe', tagLine: 'EUW', profileIconId: 7 };
   /** Names the fake knows for /lol-summoner/v2/summoners/puuid/{puuid}. */
   readonly summoners = new Map<string, { gameName: string; tagLine: string }>();
@@ -243,7 +253,7 @@ export class FakeLcu {
     return req.headers.authorization === expected;
   }
 
-  private handleHttp(req: IncomingMessage, res: ServerResponse) {
+  private async handleHttp(req: IncomingMessage, res: ServerResponse) {
     const send = (status: number, body?: unknown) => {
       res.writeHead(status, body === undefined ? {} : { 'Content-Type': 'application/json' });
       res.end(body === undefined ? undefined : JSON.stringify(body));
@@ -252,6 +262,26 @@ export class FakeLcu {
 
     const route = `${req.method} ${req.url}`;
     this.requests.push(route);
+
+    let body: unknown = null;
+    if (req.method !== 'GET') {
+      const chunks: Buffer[] = [];
+      for await (const c of req) chunks.push(c as Buffer);
+      const raw = Buffer.concat(chunks).toString('utf8');
+      try {
+        body = raw ? JSON.parse(raw) : null;
+      } catch {
+        return send(400, { errorCode: 'RPC_ERROR', httpStatus: 400, message: 'Invalid JSON' });
+      }
+    }
+    this.bodies.push({ route, body });
+
+    const champ = this.champ.handle(req.method ?? 'GET', req.url ?? '/', body);
+    if (champ) return send(champ.status, champ.data);
+
+    if (route === 'GET /lol-game-data/assets/v1/champion-summary.json') {
+      return send(200, [{ id: -1, name: 'None' }, ...this.champ.bannable.map((id) => ({ id, name: `Hero${id}` }))]);
+    }
 
     const lookup = /^GET \/lol-summoner\/v2\/summoners\/puuid\/(.+)$/.exec(route);
     if (lookup) {

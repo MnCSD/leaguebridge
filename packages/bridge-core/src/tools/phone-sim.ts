@@ -3,7 +3,7 @@
  *
  * Pairs with the 6-digit code, then stays connected and lets you type commands:
  *   accept | decline | hover <champId> | lock [champId] | ban <champId>
- *   spells <id1> <id2> | skin <skinId> | runes <pageId>
+ *   spells <id1> <id2> | skin <skinId> | runes <pageId> | pages | newpage <name>
  *   asset <path>        e.g. asset /lol-game-data/assets/v1/champion-summary.json
  *   state               print the whole current state as JSON
  *   reconnect           drop the connection and log in again with the token (tests token reuse)
@@ -121,6 +121,22 @@ rl.on('line', (line) => {
       return send({ type: 'setSkin', skinId: num(a) });
     case 'runes':
       return send({ type: 'setRunePage', pageId: num(a) });
+    case 'pages':
+      if (!state?.runes) return say('No rune pages yet');
+      for (const p of state.runes.pages) {
+        say(`  ${p.id === state.runes.currentPageId ? '*' : ' '} ${p.id}  ${p.name}${p.isEditable ? '' : '  (read-only)'}`);
+      }
+      return;
+    case 'newpage': {
+      // Saves a copy of the current page under a new name (tests creating pages).
+      const current = state?.runes?.pages.find((p) => p.id === state?.runes?.currentPageId);
+      if (!current) return say('No current rune page to copy');
+      const name = line.trim().split(/\s+/).slice(1).join(' ') || 'Phone copy';
+      return send({
+        type: 'saveRunePage',
+        page: { name, primaryStyleId: current.primaryStyleId, subStyleId: current.subStyleId, selectedPerkIds: current.selectedPerkIds },
+      });
+    }
     case 'asset':
       return void fetchAsset(a ?? '/lol-game-data/assets/v1/champion-summary.json').catch((e: Error) => say(`asset failed: ${e.message}`));
     case 'state':
@@ -133,6 +149,8 @@ rl.on('line', (line) => {
       ws?.close();
       return process.exit(0);
     default:
-      say('Commands: accept, decline, hover <id>, lock [id], ban <id>, spells <a> <b>, skin <id>, runes <pageId>, asset <path>, state, reconnect, quit');
+      say(
+        'Commands: accept, decline, hover <id>, lock [id], ban <id>, spells <a> <b>, skin <id>, runes <pageId>, pages, newpage <name>, asset <path>, state, reconnect, quit',
+      );
   }
 });

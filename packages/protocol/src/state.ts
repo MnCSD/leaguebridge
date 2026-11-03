@@ -148,6 +148,8 @@ export const ChampSelect = z.object({
   bannableChampionIds: z.array(Id).nullable(),
   disabledChampionIds: z.array(Id),
   allowSkinSelection: z.boolean(),
+  /** The client refuses bans on champions a teammate is hovering (normal/ranked draft). */
+  banTeammateHoversBlocked: z.boolean(),
   /** Skins for my current champion. Empty until a champion is chosen. */
   skins: z.array(Skin),
 });

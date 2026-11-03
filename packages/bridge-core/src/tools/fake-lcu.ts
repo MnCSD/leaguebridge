@@ -14,8 +14,13 @@ const HELP = `
 Fake League client. Keys:
   l  go to Lobby          q  queue (match found after 3s)     p  match found NOW
   a  accept (as you)      d  decline (as you)
+  k  champ select: draft (you are cell 2, mid; starts in PLANNING)
+  b  champ select: blind (Co-op style, everyone picks at once)
+  t  start turns (PLANNING -> bans)     o  everyone else acts     e  end champ select
   r  restart client (new port + password)                     c  close / reopen client
   h  help                 Ctrl+C  quit
+
+  You own champions 1-40; others ban 41-50 and pick 20-29. Skins after locking X: X000, X001 (owned).
 `;
 
 async function main() {
@@ -49,6 +54,20 @@ async function main() {
       case 'd':
         if (!fake.respond('Declined')) console.log('(no pop to decline)');
         return;
+      case 'k':
+        fake.champ.start({ mode: 'draft' });
+        return console.log(`${stamp()}  Champ select (draft): PLANNING. Press t to start bans.`);
+      case 'b':
+        fake.champ.start({ mode: 'blind' });
+        return console.log(`${stamp()}  Champ select (blind): everyone picks now.`);
+      case 't':
+        fake.champ.beginTurns();
+        return console.log(`${stamp()}  Bans started.`);
+      case 'o':
+        fake.champ.othersAct();
+        return console.log(`${stamp()}  Others acted.`);
+      case 'e':
+        return fake.champ.end();
       case 'r':
         return fake.restart();
       case 'c':

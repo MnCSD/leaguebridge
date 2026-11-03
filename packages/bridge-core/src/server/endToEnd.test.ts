@@ -103,9 +103,15 @@ describe('phone <-> bridge <-> League client', () => {
     expect(fake.requests.some((r) => r.startsWith('POST'))).toBe(false);
   });
 
-  it('champ select commands answer NOT_IMPLEMENTED until M5', async () => {
+  it('champ select from the phone: hover outside champ select is refused, inside it works', async () => {
     phone.send({ type: 'hover', id: 'h1', championId: 39 });
-    expect(await phone.next('error')).toMatchObject({ id: 'h1', code: 'NOT_IMPLEMENTED' });
+    expect(await phone.next('error')).toMatchObject({ id: 'h1', code: 'INVALID_STATE' });
+
+    fake.champ.start({ mode: 'blind' });
+    await stateWhere((m) => m.state.champSelect?.myAction?.type === 'pick');
+    phone.send({ type: 'lockIn', id: 'l1', championId: 7 });
+    expect(await phone.next('result')).toMatchObject({ id: 'l1' });
+    await stateWhere((m) => m.state.champSelect?.myTeam.find((p) => p.isMe)?.championId === 7);
   });
 
   it('knows my name on connect and looks up party members by puuid', async () => {

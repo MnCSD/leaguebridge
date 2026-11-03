@@ -1,5 +1,7 @@
 import type { BridgeState, Command } from '@league-remote/protocol';
 import type { Logger } from 'pino';
+import { ChampSelectCommands } from './champselect/commands';
+import type { PerkStyle } from './champselect/runes';
 import { CommandError } from './server/errors';
 import type { AssetResponse } from './server/phoneServer';
 import { URIS } from './state/reducer';
@@ -56,6 +58,15 @@ export class Bridge {
   private readonly source: LcuConnector | Replayer;
   /** puuid -> "Name#TAG" for lobby members (null while a lookup is running or failed). */
   private readonly names = new Map<string, string | null>();
+  /** Champion id -> name, for readable error messages. Loaded once per connection. */
+  private championNames = new Map<number, string>();
+  private perkStyles: Promise<PerkStyle[] | null> | null = null;
+  private readonly champSelect = new ChampSelectCommands({
+    getState: () => this.state,
+    request: (method, path, body) => this.clientRequest(method, path, body),
+    championName: (id) => this.championNames.get(id) ?? `Champion ${id}`,
+    perkStyles: () => this.loadPerkStyles(),
+  });
 
   constructor(private readonly opts: BridgeOptions) {
     const { log } = opts;
@@ -86,6 +97,7 @@ export class Bridge {
             opts.recorder?.write({ kind: 'connected' });
             this.handleConnected();
             await this.takeSnapshots(http);
+            void this.loadChampionNames(http);
           },
           onDisconnected: () => {
             this.http = null;
@@ -133,6 +145,7 @@ export class Bridge {
   private handleDisconnected() {
     this.clientConnected = false;
     this.names.clear();
+    this.perkStyles = null;
     this.phase.reset();
     this.autoAccepter.reset();
     this.store.setClient('disconnected');
@@ -157,8 +170,31 @@ export class Bridge {
         return;
       }
       default:
-        throw new CommandError('NOT_IMPLEMENTED', `"${command.type}" arrives in the next milestone (champ select actions)`);
+        return this.champSelect.run(command);
     }
+  }
+
+  /** Champion names from the client's game data, for error messages. Failure is fine: ids are used. */
+  private async loadChampionNames(http: LcuHttp) {
+    try {
+      const res = await http.get<{ id: number; name: string }[]>('/lol-game-data/assets/v1/champion-summary.json');
+      if (res.status === 200 && Array.isArray(res.data)) {
+        this.championNames = new Map(res.data.filter((c) => c.id > 0).map((c) => [c.id, c.name]));
+      }
+    } catch (err) {
+      this.opts.log.debug({ err: (err as Error).message }, 'Could not load champion names');
+    }
+  }
+
+  /** Rune paths for validating saved pages; loaded on first use, once per connection. */
+  private loadPerkStyles(): Promise<PerkStyle[] | null> {
+    const http = this.http;
+    if (!http) return Promise.resolve(null);
+    this.perkStyles ??= http
+      .get<PerkStyle[]>('/lol-perks/v1/styles')
+      .then((res) => (res.status === 200 && Array.isArray(res.data) ? res.data : null))
+      .catch(() => null);
+    return this.perkStyles;
   }
 
   /** For the phone server's /assets proxy. Only /lol-game-data/... paths reach this. */
