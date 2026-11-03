@@ -1,0 +1,41 @@
+# Builds "League Remote Setup.exe" (Squirrel installer with an animated splash).
+#   npm run desktop:dist   (from the repo root)
+# Output: apps/desktop/release/
+
+appId: com.leagueremote.bridge
+productName: League Remote
+# Exact Electron version to package (keep in sync with the installed one when upgrading).
+electronVersion: 45.2.1
+copyright: Copyright © 2026 Marios Nikolopoulos
+
+directories:
+  output: release
+  buildResources: resources
+
+# Everything the app needs is bundled into out/ by electron-vite, so no node_modules are shipped.
+files:
+  - out/**/*
+  - resources/icon.ico
+  - resources/icon.png
+  - resources/tray.png
+  - resources/tray@2x.png
+  - package.json
+# Windows reads notification icons from disk, so keep the PNGs outside the app archive.
+asarUnpack:
+  - resources/*.png
+npmRebuild: false
+
+win:
+  target: squirrel
+  icon: resources/icon.ico
+  executableName: LeagueRemote
+
+squirrelWindows:
+  # Install folder: %LOCALAPPDATA%\LeagueRemote (your settings stay in %APPDATA%\LeagueRemote).
+  name: LeagueRemote
+  # Shown while installing, made by `npm run splash -w apps/desktop`.
+  loadingGif: resources/install-splash.gif
+  # Squirrel's files with our icon on Update.exe (made by scripts/prepare-squirrel.cjs).
+  customSquirrelVendorDir: build/squirrel-vendor
+  # Icon in Windows "Installed apps" (Squirrel needs a URL for it).
+  iconUrl: https://raw.githubusercontent.com/MnCSD/leaguebridge/main/apps/desktop/resources/icon.ico

@@ -1,0 +1,110 @@
+<!doctype html>
+<!--
+  The installer splash, as a web page, in the same clean style as the app window.
+  scripts/render-splash.cjs captures it frame by frame into resources/install-splash.gif, which
+  Squirrel shows while it installs. Every animation repeats exactly within --loop so the GIF
+  loops seamlessly. Kept nearly flat on purpose: GIFs have 256 colours, and big soft gradients
+  turn into visible bands.
+-->
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  @font-face { font-family: Barlow; font-weight: 400; src: url(../../../../node_modules/@fontsource/barlow/files/barlow-latin-400-normal.woff2); }
+  @font-face { font-family: Barlow; font-weight: 600; src: url(../../../../node_modules/@fontsource/barlow/files/barlow-latin-600-normal.woff2); }
+
+  :root { --loop: 2s; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; width: 480px; height: 300px; overflow: hidden; }
+  body {
+    position: relative;
+    background: linear-gradient(180deg, #111c2b, #0c1521);
+    color: #f0e6d2;
+    font-family: Barlow, 'Segoe UI', sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  body::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border: 1px solid rgb(255 255 255 / 0.08);
+    pointer-events: none;
+  }
+
+  .center {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding-bottom: 10px;
+  }
+
+  .icon {
+    width: 72px;
+    height: 72px;
+    filter: drop-shadow(0 10px 16px rgb(0 0 0 / 0.45));
+    animation: float var(--loop) ease-in-out infinite;
+  }
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-3px); }
+  }
+
+  .title {
+    margin-top: 18px;
+    font-weight: 600;
+    font-size: 21px;
+    letter-spacing: -0.01em;
+  }
+  .subtitle {
+    margin-top: 4px;
+    font-size: 13px;
+    color: #8f98a8;
+  }
+
+  .track {
+    position: relative;
+    margin-top: 22px;
+    width: 200px;
+    height: 3px;
+    border-radius: 999px;
+    background: rgb(255 255 255 / 0.09);
+    overflow: hidden;
+  }
+  .bar {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 70px;
+    border-radius: 999px;
+    background: #0ac8b9;
+    animation: slide var(--loop) cubic-bezier(0.65, 0, 0.35, 1) infinite;
+  }
+  @keyframes slide {
+    from { left: -70px; }
+    to { left: 200px; }
+  }
+
+  .foot {
+    position: absolute;
+    bottom: 16px;
+    left: 0;
+    right: 0;
+    text-align: center;
+    font-size: 11px;
+    color: #5b6678;
+  }
+</style>
+</head>
+<body>
+  <div class="center">
+    <img class="icon" src="../../resources/icon.svg" alt="">
+    <div class="title">League Remote</div>
+    <div class="subtitle">Installing, this only takes a moment</div>
+    <div class="track"><div class="bar"></div></div>
+  </div>
+  <div class="foot">Control your League client from your phone</div>
+</body>
+</html>

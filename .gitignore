@@ -2,6 +2,8 @@ node_modules/
 dist/
 out/
 apps/desktop/out/
+apps/desktop/release/
+apps/desktop/build/
 *.log
 
 # Recordings contain your account data (summoner names, friends, match info). Keep them local.

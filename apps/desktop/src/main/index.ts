@@ -7,10 +7,10 @@
  *   --mock <file>         Replay a recording instead of using League
  *   --hidden              Start in the tray (used by "Start with Windows")
  */
-import { execFile } from 'node:child_process';
+import { execFile, spawn } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs';
 import { hostname } from 'node:os';
-import { dirname, join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 import { parseArgs } from 'node:util';
 import { app, BrowserWindow, ipcMain, Menu, nativeImage, Notification, shell, Tray } from 'electron';
 import {
@@ -31,6 +31,47 @@ import iconPng from '../../resources/icon.png?asset';
 import trayPng from '../../resources/tray.png?asset';
 import tray2xPng from '../../resources/tray@2x.png?asset';
 import type { SettingKey, UiSnapshot, UiStatus } from '../shared';
+
+// --- installer (Squirrel) events ------------------------------------------------------------
+//
+// The Squirrel installer runs the app once with a special flag on install/update/uninstall.
+// We create or remove the Start Menu + desktop shortcuts (via Squirrel's Update.exe) and exit,
+// without opening a window. The installed layout is:
+//   %LOCALAPPDATA%\LeagueRemote\Update.exe
+//   %LOCALAPPDATA%\LeagueRemote\app-0.1.0\LeagueRemote.exe   <- process.execPath
+
+const isSquirrel = app.isPackaged && process.platform === 'win32';
+const updateExe = join(dirname(process.execPath), '..', 'Update.exe');
+const exeName = basename(process.execPath);
+
+function handleSquirrelEvent(): boolean {
+  const event = process.argv[1];
+  if (!isSquirrel || !event?.startsWith('--squirrel-') || event === '--squirrel-firstrun') return false;
+  const runUpdate = (updateArgs: string[]) => {
+    // Quit once Update.exe has finished (or failed); Squirrel waits for us to exit.
+    spawn(updateExe, updateArgs, { detached: true }).on('close', () => app.quit()).on('error', () => app.quit());
+  };
+  switch (event) {
+    case '--squirrel-install':
+    case '--squirrel-updated':
+      runUpdate(['--createShortcut', exeName]);
+      break;
+    case '--squirrel-uninstall':
+      app.setLoginItemSettings({ openAtLogin: false, path: updateExe, args: loginItemArgs() });
+      runUpdate(['--removeShortcut', exeName]);
+      break;
+    default: // --squirrel-obsolete: an old version being replaced
+      app.quit();
+  }
+  return true;
+}
+
+/** "Start with Windows" goes through Update.exe, so it keeps working after the app updates. */
+function loginItemArgs() {
+  return ['--processStart', `"${exeName}"`, '--process-start-args', '"--hidden"'];
+}
+
+const squirrelEvent = handleSquirrelEvent();
 
 // --- paths & args ---------------------------------------------------------------------------
 
@@ -77,11 +118,12 @@ const saveDesktop = () => writeFileSync(desktopFile, JSON.stringify(desktop, nul
 
 // Windows only shows toast notifications for apps with an App User Model ID (AUMID); without one
 // they're dropped silently. The toast's header ("League Remote" + icon) is looked up from that id:
-//  - packaged app: the installer's Start Menu shortcut carries the id and name.
+//  - installed app: Squirrel's Start Menu shortcut carries the id "com.squirrel.<name>.<exe>"
+//    and the name "League Remote", so the app must use exactly that id.
 //  - dev: there's no shortcut, so register the name and icon for the id under the current user
 //    (HKCU\Software\Classes\AppUserModelId\<id>, Windows' documented way for unpackaged apps).
 //    Otherwise the header says "Electron".
-const AUMID = app.isPackaged ? 'com.leagueremote.bridge' : 'com.leagueremote.bridge.dev';
+const AUMID = isSquirrel ? `com.squirrel.LeagueRemote.${exeName.replace(/\.exe$/i, '')}` : 'com.leagueremote.bridge.dev';
 if (process.platform === 'win32') {
   app.setAppUserModelId(AUMID);
   if (!app.isPackaged) registerDevToastIdentity();
@@ -98,7 +140,10 @@ function registerDevToastIdentity() {
 }
 
 // Only one bridge at a time: a second launch just shows the existing window.
-if (!app.requestSingleInstanceLock()) {
+// (During an installer event we only manage shortcuts and exit; see handleSquirrelEvent.)
+if (squirrelEvent) {
+  // nothing else to start
+} else if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
   app.on('second-instance', () => showWindow());
@@ -390,7 +435,9 @@ function toast(body: string) {
     log.warn('Desktop notifications are not supported on this system');
     return;
   }
-  const n = new Notification({ title: 'League Remote', body, icon: iconPng });
+  // Windows loads the icon from disk itself, so use the copy kept outside the app archive.
+  const icon = iconPng.replace(`app.asar${process.platform === 'win32' ? '\\' : '/'}`, `app.asar.unpacked${process.platform === 'win32' ? '\\' : '/'}`);
+  const n = new Notification({ title: 'League Remote', body, icon });
   n.on('failed', (_e, error) => log.warn({ error }, 'Desktop notification failed'));
   n.show();
 }
@@ -418,12 +465,13 @@ ipcMain.handle('setSetting', (_e, key: SettingKey, value: boolean) => {
     localNetworkOnly: () => configStore.update((c) => (c.localNetworkOnly = value)),
     startWithWindows: () => {
       desktop.startWithWindows = value;
-      // In development "electron.exe" needs the app folder as an argument; a packaged app doesn't.
-      app.setLoginItemSettings({
-        openAtLogin: value,
-        path: process.execPath,
-        args: app.isPackaged ? ['--hidden'] : [app.getAppPath(), '--hidden'],
-      });
+      // Installed: start through Squirrel's Update.exe (survives updates, which change the exe's folder).
+      // Development: "electron.exe" needs the app folder as an argument.
+      app.setLoginItemSettings(
+        isSquirrel
+          ? { openAtLogin: value, path: updateExe, args: loginItemArgs() }
+          : { openAtLogin: value, path: process.execPath, args: [app.getAppPath(), '--hidden'] },
+      );
     },
     minimizeToTray: () => (desktop.minimizeToTray = value),
     notifications: () => {

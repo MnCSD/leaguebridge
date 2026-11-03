@@ -21,6 +21,7 @@
     "desktop": "npm run dev -w apps/desktop",
     "desktop:fake": "npm run dev:fake -w apps/desktop",
     "desktop:build": "npm run build -w apps/desktop",
+    "desktop:dist": "npm run dist -w apps/desktop",
     "typecheck": "tsc -p packages/protocol --noEmit && tsc -p packages/bridge-core --noEmit && tsc -p apps/desktop --noEmit"
   },
   "engines": {

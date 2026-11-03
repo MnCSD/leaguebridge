@@ -5,19 +5,19 @@ import { defineConfig } from 'electron-vite';
 /**
  * Three builds: main process (Node), preload (bridge between the two), renderer (the window, React).
  *
- * `externalizeDeps`: third-party packages in package.json "dependencies" stay out of the bundle
- * and load from node_modules at runtime (pino, ws... don't like being bundled). Our own workspace
- * packages are TypeScript source, so they ARE bundled (excluded from externalizing).
+ * Everything is bundled into out/ (externalizeDeps: false), including our own workspace packages
+ * and third-party ones like ws, pino and qrcode. The installed app then needs no node_modules,
+ * which keeps the installer small and simple. ws's optional native speed-ups stay external:
+ * they aren't installed, and ws works without them.
  */
-const ours = ['@league-remote/bridge-core', '@league-remote/protocol'];
+const bundleAll = {
+  externalizeDeps: false,
+  rollupOptions: { external: ['bufferutil', 'utf-8-validate'] },
+};
 
 export default defineConfig({
-  main: {
-    build: { externalizeDeps: { exclude: ours } },
-  },
-  preload: {
-    build: { externalizeDeps: { exclude: ours } },
-  },
+  main: { build: bundleAll },
+  preload: { build: bundleAll },
   renderer: {
     plugins: [react(), tailwindcss()],
   },
