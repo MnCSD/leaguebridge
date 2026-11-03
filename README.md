@@ -5,7 +5,7 @@ accept queue pops, ban, pick, lock in, change summoner spells, skins and rune pa
 
 This repo is the **PC side** (the "bridge"). It runs on your Windows PC, talks to the League
 client's local API, and serves a small, authenticated WebSocket API to your paired phone on the
-local network. The phone app (Expo / React Native) comes next.
+local network. The phone app (Expo / React Native) lives in `apps/mobile`.
 
 ```
  Phone app  ──Wi-Fi──▶  Bridge (this repo)  ──127.0.0.1──▶  League client (LCU API)
@@ -19,6 +19,7 @@ local network. The phone app (Expo / React Native) comes next.
 | `packages/protocol` | Shared message types (zod schemas + TS types) for bridge and phone: `BridgeState`, commands, errors. Platform-neutral so the Expo app can import it. |
 | `packages/bridge-core` | All the logic, no UI: LCU connection, state reducer, auto-accept, phone server, pairing, champ select commands, mock mode, dev tools. Runs headless with `npm run bridge`. |
 | `apps/desktop` | Electron app (Vite + React + Tailwind): window, tray, settings, pairing QR. Bundles bridge-core. Builds the Windows installer. |
+| `apps/mobile` | Phone app (Expo SDK 58, Expo Router): pairing (QR or code), lobby/queue, ready check, champ select (ban, pick, lock in), spells, skins, rune pages. Same look as the desktop app. |
 
 ## Requirements
 
@@ -44,6 +45,11 @@ npm test
 | `npm run bridge` | Headless bridge in a terminal (records events to `recordings/`). |
 | `npm run bridge:auto` | Same, with auto-accept on. |
 | `npm run desktop:dist` | Builds the installer: `apps/desktop/release/squirrel-windows/League Remote Setup 0.1.0.exe` |
+
+**Phone app:** run `npm run mobile`, install **Expo Go** on the phone (same Wi-Fi as the PC) and
+scan the QR code Expo prints. In the app, scan the pairing QR from the desktop app or
+`npm run bridge`, or type the PC address and 6-digit code. `npm run mobile` then `w` opens a
+browser preview (no camera; images need CORS, so they only load on a phone).
 
 Only one bridge can run at a time (they all use port 4242). Quit the desktop app from the tray
 before running `npm run bridge`, and vice versa.
@@ -95,11 +101,13 @@ Writes: ready-check accept/decline, champ select actions (hover/complete), `my-s
 | M4 Phone server + pairing | Done, tested with phone-sim |
 | M5 Champ select + runes | Done, verified on the real client (custom and normal Draft): accept, hover, ban, lock in, spells, skin, rune page. Saving a new rune page reached the client, which refused it (max pages reached), as expected |
 | M6 Desktop app + installer | Done (modern restyle, tray, notifications, Squirrel installer) |
+| M7 Phone app | First version: all screens built and checked in a browser preview against a replayed real game. **Not yet run on a phone** |
 
 ## Next steps
 
-1. **The Expo phone app** (designs: League Remote canvas). Show the turn countdown: normal Draft
-   gives 25s per pick, and a hover that is never locked in times out as a dodge.
+1. **Phone app on a real phone:** pair, then one custom Draft game (ban, lock in, spells, skin,
+   runes from the app). Then: rune page editor, a notification when a match pops while the app is
+   in the background (needs a development build), app icon/splash polish.
 2. **Small fixes seen in live tests:** custom-game bots come through as `isBot: false` with no
    name (only the lobby marks them); `Runes: "?"` when the current page is a temporary one not in
    the page list; the lobby briefly shows a puuid prefix before the name loads.

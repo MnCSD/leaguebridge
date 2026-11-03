@@ -22,7 +22,8 @@
     "desktop:fake": "npm run dev:fake -w apps/desktop",
     "desktop:build": "npm run build -w apps/desktop",
     "desktop:dist": "npm run dist -w apps/desktop",
-    "typecheck": "tsc -p packages/protocol --noEmit && tsc -p packages/bridge-core --noEmit && tsc -p apps/desktop --noEmit"
+    "typecheck": "tsc -p packages/protocol --noEmit && tsc -p packages/bridge-core --noEmit && tsc -p apps/desktop --noEmit && tsc -p apps/mobile --noEmit",
+    "mobile": "npm run start -w apps/mobile"
   },
   "engines": {
     "node": ">=20"
@@ -33,5 +34,9 @@
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",
     "vitest": "^5.1.0"
+  },
+  "overrides": {
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
   }
 }

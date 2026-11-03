@@ -201,7 +201,9 @@ interface RawSkin {
   name?: string;
   unlocked?: boolean;
   disabled?: boolean;
-  childSkins?: { id: number; name?: string; colors?: string[]; unlocked?: boolean }[];
+  splashPath?: string;
+  tilePath?: string;
+  childSkins?: { id: number; name?: string; colors?: string[]; unlocked?: boolean; chromaPreviewPath?: string }[];
 }
 interface RawPerkPage {
   id: number;
@@ -397,7 +399,15 @@ function toSkin(s: RawSkin): Skin {
     name: s.name ?? '',
     owned: !!s.unlocked,
     disabled: !!s.disabled,
-    chromas: (s.childSkins ?? []).map((c) => ({ id: c.id, name: c.name ?? '', colors: c.colors ?? [], owned: !!c.unlocked })),
+    splashPath: s.splashPath ?? '',
+    tilePath: s.tilePath ?? '',
+    chromas: (s.childSkins ?? []).map((c) => ({
+      id: c.id,
+      name: c.name ?? '',
+      colors: c.colors ?? [],
+      owned: !!c.unlocked,
+      previewPath: c.chromaPreviewPath ?? '',
+    })),
   };
 }
 

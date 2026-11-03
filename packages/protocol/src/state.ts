@@ -105,13 +105,23 @@ export const ChampSelectPlayer = z.object({
 });
 export type ChampSelectPlayer = z.infer<typeof ChampSelectPlayer>;
 
-export const Chroma = z.object({ id: Id, name: z.string(), colors: z.array(z.string()), owned: z.boolean() });
+export const Chroma = z.object({
+  id: Id,
+  name: z.string(),
+  colors: z.array(z.string()),
+  owned: z.boolean(),
+  /** /lol-game-data/assets/... image of the chroma, "" if none. */
+  previewPath: z.string(),
+});
 export const Skin = z.object({
   id: Id,
   name: z.string(),
   /** Can be selected (owned, or free like the base skin). */
   owned: z.boolean(),
   disabled: z.boolean(),
+  /** /lol-game-data/assets/... images (fetch through /assets), "" if none. */
+  splashPath: z.string(),
+  tilePath: z.string(),
   chromas: z.array(Chroma),
 });
 export type Skin = z.infer<typeof Skin>;

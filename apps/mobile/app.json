@@ -1,0 +1,64 @@
+{
+  "expo": {
+    "name": "League Remote",
+    "slug": "league-remote",
+    "scheme": "leagueremote",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#070D17",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.leagueremote.app",
+      "infoPlist": {
+        "NSLocalNetworkUsageDescription": "League Remote connects to the League Remote app on your PC over your Wi-Fi.",
+        "NSAppTransportSecurity": {
+          "NSAllowsLocalNetworking": true
+        }
+      }
+    },
+    "android": {
+      "package": "com.leagueremote.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#070D17",
+        "foregroundImage": "./assets/android-icon-foreground.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-image",
+      "expo-font",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "League Remote uses the camera to scan the pairing QR code on your PC."
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#070D17",
+          "image": "./assets/icon.png",
+          "imageWidth": 120
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
