@@ -229,23 +229,23 @@ export class FakeChampSelect {
       if (a.completed) return err(500, 'Action already completed');
 
       if (method === 'PATCH' && !action[2]) {
-        const championId = Number((body as { championId?: number } | null)?.championId);
+        const { championId: rawId, completed } = (body ?? {}) as { championId?: number; completed?: boolean };
+        const championId = Number(rawId);
         if (!championId) return err(400, 'championId required');
         if (a.type === 'ban' && !a.isInProgress) return err(500, 'Not your turn to ban');
         if (a.type === 'pick' && !this.owned.includes(championId)) return err(500, 'Champion not available');
+        if (completed && (!a.isInProgress || s.timer.phase !== 'BAN_PICK')) return err(500, 'Action is not in progress');
         a.championId = championId;
         if (a.type === 'pick') this.member(a.actorCellId)!.championPickIntent = championId;
+        if (completed) {
+          this.complete(a);
+          this.advance();
+        }
         this.emitSession();
         return { status: 204 };
       }
-      if (method === 'POST' && action[2]) {
-        if (!a.isInProgress || s.timer.phase !== 'BAN_PICK') return err(500, 'Action is not in progress');
-        if (!a.championId) return err(500, 'No champion selected');
-        this.complete(a);
-        this.advance();
-        this.emitSession();
-        return { status: 204 };
-      }
+      // Like the real client (seen live, Nov 2026): accepted, but nothing happens.
+      if (method === 'POST' && action[2]) return { status: 204 };
     }
 
     if (method === 'PATCH' && url === `${SESSION}/my-selection`) {

@@ -104,9 +104,9 @@ describe('draft: planning and bans', () => {
     await openDraft(false);
     await run({ type: 'ban', championId: 33 });
     await until((c) => c.bans.myTeam.includes(33) && c.myAction === null);
-    const routes = fake.bodies.map((b) => b.route).slice(-2);
-    expect(routes[0]).toMatch(/^PATCH \/lol-champ-select\/v1\/session\/actions\/\d+$/);
-    expect(routes[1]).toMatch(/^POST \/lol-champ-select\/v1\/session\/actions\/\d+\/complete$/);
+    const last = fake.bodies.at(-1)!;
+    expect(last.route).toMatch(/^PATCH \/lol-champ-select\/v1\/session\/actions\/\d+$/);
+    expect(last.body).toEqual({ championId: 33, type: 'ban', completed: true });
     await expectError({ type: 'ban', championId: 34 }, 'INVALID_STATE', /isn't your turn to ban/);
   });
 });

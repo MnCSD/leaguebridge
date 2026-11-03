@@ -93,16 +93,16 @@ Writes: ready-check accept/decline, champ select actions (hover/complete), `my-s
 | M2 Auto-accept | Done, verified on the real client |
 | M3 State model + mock mode | Done, reducer tested against real recordings (anonymized fixtures in `packages/bridge-core/test/fixtures`) |
 | M4 Phone server + pairing | Done, tested with phone-sim |
-| M5 Champ select + runes | Done, tested against the fake client. **Real-client check pending** |
+| M5 Champ select + runes | Done, verified on the real client (custom and normal Draft): accept, hover, ban, lock in, spells, skin, rune page. Saving a new rune page reached the client, which refused it (max pages reached), as expected |
 | M6 Desktop app + installer | Done (modern restyle, tray, notifications, Squirrel installer) |
 
 ## Next steps
 
-1. **M5 real-client check.** Custom Game, Blind Pick vs bots (no queue, no dodge penalty): run
-   `npm run bridge` + `npm run phone-sim pair <code>`, then `hover`, `lock`, `spells`, `skin`,
-   `pages`, `runes`, `newpage`. Then one `ban` in a normal Draft game. Watch for `CLIENT_ERROR`
-   lines: the real request bodies and error messages were never recorded.
-2. **The Expo phone app** (designs: League Remote canvas).
+1. **The Expo phone app** (designs: League Remote canvas). Show the turn countdown: normal Draft
+   gives 25s per pick, and a hover that is never locked in times out as a dodge.
+2. **Small fixes seen in live tests:** custom-game bots come through as `isBot: false` with no
+   name (only the lobby marks them); `Runes: "?"` when the current page is a temporary one not in
+   the page list; the lobby briefly shows a puuid prefix before the name loads.
 3. **Deferred design features** (not in the original spec, each needs new LCU endpoints approved
    first): game mode select, Find Match, Leave Queue, invite a friend, position selection, plus the
    phone's "auto-apply runes" and "alert & vibrate" toggles.

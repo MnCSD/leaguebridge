@@ -5,7 +5,10 @@
  * ("It isn't your turn to ban", "A teammate wants to play Ahri") instead of a raw client error.
  * Only then is the request sent, using the endpoints from the spec:
  *   PATCH /lol-champ-select/v1/session/actions/{id}   { championId }   hover / declare intent
- *   POST  /lol-champ-select/v1/session/actions/{id}/complete            lock in / confirm ban
+ *   PATCH /lol-champ-select/v1/session/actions/{id}   { championId, type, completed: true }
+ *                                                                       lock in / confirm ban
+ *     (POST .../actions/{id}/complete answers 204 on the real client but does nothing: a live
+ *      Nov 2026 test timed out a pick that way.)
  *   PATCH /lol-champ-select/v1/session/my-selection   { spell1Id, spell2Id } | { selectedSkinId }
  *   PUT   /lol-perks/v1/currentpage                   <pageId>
  *   POST  /lol-perks/v1/pages | PUT /lol-perks/v1/pages/{id}   save a page
@@ -84,8 +87,7 @@ export class ChampSelectCommands {
     const champ = championId ?? turn.championId;
     if (!champ) throw new CommandError('INVALID_STATE', 'Hover a champion first');
     this.checkPickable(cs, champ);
-    if (champ !== turn.championId) await this.deps.request('PATCH', `${ACTIONS}/${turn.id}`, { championId: champ });
-    await this.deps.request('POST', `${ACTIONS}/${turn.id}/complete`);
+    await this.deps.request('PATCH', `${ACTIONS}/${turn.id}`, { championId: champ, type: 'pick', completed: true });
   }
 
   private async ban(championId: number) {
@@ -94,8 +96,7 @@ export class ChampSelectCommands {
     if (turn?.type !== 'ban') throw new CommandError('INVALID_STATE', "It isn't your turn to ban");
     this.requireChampion(championId);
     this.checkBannable(cs, championId);
-    if (championId !== turn.championId) await this.deps.request('PATCH', `${ACTIONS}/${turn.id}`, { championId });
-    await this.deps.request('POST', `${ACTIONS}/${turn.id}/complete`);
+    await this.deps.request('PATCH', `${ACTIONS}/${turn.id}`, { championId, type: 'ban', completed: true });
   }
 
   private checkPickable(cs: ChampSelect, id: number) {
