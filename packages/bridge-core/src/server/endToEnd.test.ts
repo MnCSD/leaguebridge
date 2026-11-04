@@ -114,6 +114,37 @@ describe('phone <-> bridge <-> League client', () => {
     await stateWhere((m) => m.state.champSelect?.myTeam.find((p) => p.isMe)?.championId === 7);
   });
 
+  it('find match and leave queue from the phone', async () => {
+    phone.send({ type: 'findMatch', id: 'f0' });
+    expect(await phone.next('error')).toMatchObject({ id: 'f0', code: 'INVALID_STATE', message: 'Open a lobby in League first' });
+
+    fake.setLobby([]);
+    await stateWhere((m) => m.state.lobby !== null);
+    phone.send({ type: 'leaveQueue', id: 'q0' });
+    expect(await phone.next('error')).toMatchObject({ id: 'q0', code: 'INVALID_STATE' });
+
+    phone.send({ type: 'findMatch', id: 'f1' });
+    expect(await phone.next('result')).toMatchObject({ id: 'f1' });
+    expect(fake.requests).toContain('POST /lol-lobby/v2/lobby/matchmaking/search');
+    await stateWhere((m) => m.state.phase === 'Matchmaking' && m.state.matchmaking?.state === 'Searching');
+
+    phone.send({ type: 'findMatch', id: 'f2' });
+    expect(await phone.next('error')).toMatchObject({ id: 'f2', code: 'INVALID_STATE', message: "You're already in queue" });
+
+    phone.send({ type: 'leaveQueue', id: 'q1' });
+    expect(await phone.next('result')).toMatchObject({ id: 'q1' });
+    expect(fake.requests).toContain('DELETE /lol-lobby/v2/lobby/matchmaking/search');
+    await stateWhere((m) => m.state.phase === 'Lobby' && m.state.matchmaking === null);
+  });
+
+  it('only the party leader can start the queue', async () => {
+    fake.setLobby(['friend-puuid'], { meLeader: false });
+    await stateWhere((m) => m.state.lobby?.members.find((x) => x.isMe)?.isLeader === false);
+    phone.send({ type: 'findMatch', id: 'f1' });
+    expect(await phone.next('error')).toMatchObject({ id: 'f1', code: 'NOT_ALLOWED', message: 'Only the party leader can start the queue' });
+    expect(fake.requests).not.toContain('POST /lol-lobby/v2/lobby/matchmaking/search');
+  });
+
   it('knows my name on connect and looks up party members by puuid', async () => {
     fake.summoners.set('friend-puuid', { gameName: 'Buddy', tagLine: 'EUW' });
     fake.setLobby(['friend-puuid']);

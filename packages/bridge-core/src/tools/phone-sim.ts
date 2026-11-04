@@ -2,7 +2,7 @@
  * `npm run phone-sim pair <code> [host] [port]` — a pretend phone, for testing without the app.
  *
  * Pairs with the 6-digit code, then stays connected and lets you type commands:
- *   accept | decline | hover <champId> | lock [champId] | ban <champId>
+ *   accept | decline | find | leave | hover <champId> | lock [champId] | ban <champId>
  *   spells <id1> <id2> | skin <skinId> | runes <pageId> | pages | newpage <name>
  *   asset <path>        e.g. asset /lol-game-data/assets/v1/champion-summary.json
  *   state               print the whole current state as JSON
@@ -109,6 +109,10 @@ rl.on('line', (line) => {
     case 'accept':
     case 'decline':
       return send({ type: cmd });
+    case 'find':
+      return send({ type: 'findMatch' });
+    case 'leave':
+      return send({ type: 'leaveQueue' });
     case 'hover':
       return send({ type: 'hover', championId: num(a) });
     case 'lock':
@@ -150,7 +154,7 @@ rl.on('line', (line) => {
       return process.exit(0);
     default:
       say(
-        'Commands: accept, decline, hover <id>, lock [id], ban <id>, spells <a> <b>, skin <id>, runes <pageId>, pages, newpage <name>, asset <path>, state, reconnect, quit',
+        'Commands: accept, decline, find, leave, hover <id>, lock [id], ban <id>, spells <a> <b>, skin <id>, runes <pageId>, pages, newpage <name>, asset <path>, state, reconnect, quit',
       );
   }
 });

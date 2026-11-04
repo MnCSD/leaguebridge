@@ -63,7 +63,7 @@ never reach the script. Use the ready-made scripts above, or write `npm run x '-
 |---|---|
 | `npm run fake-lcu` | A fake League client: queue pops, Draft/Blind champ select, skins, rune pages. Keys: `p` pop, `q` queue, `a`/`d` accept/decline, `k` draft, `b` blind, `t` start turns, `o` others act, `e` end, `r` restart, `h` help. |
 | `npm run bridge:fake` / `npm run desktop:fake` | Bridge / desktop app connected to the fake client. |
-| `npm run phone-sim pair <code>` | A pretend phone. Then type: `accept`, `decline`, `hover <id>`, `lock [id]`, `ban <id>`, `spells <a> <b>`, `skin <id>`, `runes <pageId>`, `pages`, `newpage <name>`, `asset <path>`, `state`, `reconnect`, `quit`. |
+| `npm run phone-sim pair <code>` | A pretend phone. Then type: `accept`, `decline`, `find`, `leave`, `hover <id>`, `lock [id]`, `ban <id>`, `spells <a> <b>`, `skin <id>`, `runes <pageId>`, `pages`, `newpage <name>`, `asset <path>`, `state`, `reconnect`, `quit`. |
 | `npm run mock -- <recording.jsonl>` | Replays a recording through the bridge (`--speed 20`, `--loop`). |
 
 In the fake: you own champions 1-40, others ban 41-50 and pick 20-29; after locking champion X its
@@ -88,8 +88,9 @@ Reads: gameflow phase/session, lobby, matchmaking search and ready check, champ 
 current summoner, summoner by puuid (party names), chat `me`, and `/lol-game-data/...` (names and
 images, proxied to the phone at `/assets/...`).
 
-Writes: ready-check accept/decline, champ select actions (hover/complete), `my-selection`
-(spells, skin), perks current page and pages. **Rule: anything else needs a decision first.**
+Writes: ready-check accept/decline, matchmaking search start/stop (`/lol-lobby/v2/lobby/matchmaking/search`,
+POST/DELETE), champ select actions (hover/complete), `my-selection` (spells, skin), perks current
+page and pages. **Rule: anything else needs a decision first.**
 
 ## Status (November 2026)
 
@@ -101,18 +102,18 @@ Writes: ready-check accept/decline, champ select actions (hover/complete), `my-s
 | M4 Phone server + pairing | Done, tested with phone-sim |
 | M5 Champ select + runes | Done, verified on the real client (custom and normal Draft): accept, hover, ban, lock in, spells, skin, rune page. Saving a new rune page reached the client, which refused it (max pages reached), as expected |
 | M6 Desktop app + installer | Done (modern restyle, tray, notifications, Squirrel installer) |
-| M7 Phone app | First version: all screens built and checked in a browser preview against a replayed real game. **Not yet run on a phone** |
+| M7 Phone app | Done, tested on an iPhone (Expo Go). Since then: rune page editor, Find Match / Leave Queue (fake client + browser preview; **real-client check pending**) |
 
 ## Next steps
 
-1. **Phone app on a real phone:** pair, then one custom Draft game (ban, lock in, spells, skin,
-   runes from the app). Then: rune page editor, a notification when a match pops while the app is
-   in the background (needs a development build), app icon/splash polish.
+1. **Real-client check of the new commands:** Find Match and Leave Queue from the phone in a
+   lobby, and editing a rune page (then: a match-pop notification while the app is in the
+   background, which needs a development build).
 2. **Small fixes seen in live tests:** custom-game bots come through as `isBot: false` with no
    name (only the lobby marks them); `Runes: "?"` when the current page is a temporary one not in
    the page list; the lobby briefly shows a puuid prefix before the name loads.
 3. **Deferred design features** (not in the original spec, each needs new LCU endpoints approved
-   first): game mode select, Find Match, Leave Queue, invite a friend, position selection, plus the
+   first): game mode select, invite a friend, position selection, plus the
    phone's "auto-apply runes" and "alert & vibrate" toggles.
 
 Still to click through on the installed app: tray menu, minimize/close, Open log, Start with Windows.

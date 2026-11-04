@@ -35,7 +35,7 @@ function Backdrop({ art, glow }: { art?: string | null; glow: 'teal' | 'gold' | 
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
       {source ? (
         <FadeIn key={art} style={StyleSheet.absoluteFill}>
-          <Image source={source} style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 520 }} contentFit="cover" blurRadius={2} />
+          <Image source={source} cachePolicy="memory-disk" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 520 }} contentFit="cover" blurRadius={2} />
           <Svg width="100%" height="100%" style={StyleSheet.absoluteFill}>
             <Defs>
               <LinearGradient id="fade" x1="0" y1="0" x2="0" y2="1">
@@ -261,7 +261,7 @@ export function GameImage({
   return (
     <View style={[{ width: w, height: h, borderRadius: rounded, backgroundColor: colors.raised, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }, style]}>
       {fallback ? <Text style={{ position: 'absolute', fontFamily: fonts.semi, color: colors.faint, fontSize: Math.min(w, h) * 0.36 }}>{fallback}</Text> : null}
-      {source ? <Image source={source} style={{ width: w, height: h, opacity: dim ? 0.45 : 1 }} contentFit="cover" transition={150} /> : null}
+      {source ? <Image source={source} cachePolicy="memory-disk" style={{ width: w, height: h, opacity: dim ? 0.45 : 1 }} contentFit="cover" transition={150} /> : null}
     </View>
   );
 }
@@ -345,6 +345,8 @@ const ICONS = {
   scan: ['M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3', 'M4 12h16'],
   chevron: ['M9 6l6 6-6 6'],
   ban: ['M19 12a7 7 0 1 1-14 0 7 7 0 0 1 14 0z', 'M7 7l10 10'],
+  edit: ['M4 20h4L19 9l-4-4L4 16z', 'M13.5 6.5l4 4'],
+  plus: ['M12 5v14M5 12h14'],
 } as const;
 export type IconName = keyof typeof ICONS;
 

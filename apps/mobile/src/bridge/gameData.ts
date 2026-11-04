@@ -23,6 +23,23 @@ export interface Perk {
   id: number;
   name: string;
   icon: string;
+  /** Short description, plain text (the client's markup removed). */
+  desc: string;
+}
+
+/** A rune path (Precision, Domination...) and its rows, from perkstyles.json. */
+export interface RuneStyle {
+  id: number;
+  name: string;
+  icon: string;
+  allowedSubStyles: number[];
+  defaultSubStyle: number;
+  /** 9 perk ids the client uses for a fresh page on this path. */
+  defaultPerks: number[];
+  /** Keystone row, then 3 rune rows. */
+  runeRows: number[][];
+  /** 3 stat shard rows with their labels (Offense, Flex, Defense). */
+  shardRows: { label: string; perks: number[] }[];
 }
 
 export interface GameData {
@@ -31,21 +48,34 @@ export interface GameData {
   championList: Champion[];
   spells: Map<number, Spell>;
   perks: Map<number, Perk>;
-  styles: Map<number, Perk>;
+  styles: Map<number, RuneStyle>;
 }
 
 const EMPTY: GameData = { champions: new Map(), championList: [], spells: new Map(), perks: new Map(), styles: new Map() };
 
 const assetUrl = (b: Pick<SavedBridge, 'host' | 'port'>, path: string) => `http://${b.host}:${b.port}${ASSETS_PATH}${path}`;
 
-/** expo-image source for a /lol-game-data/assets/... path. */
+type AssetSource = { uri: string; headers: { Authorization: string } };
+let sources: { bridge: SavedBridge; byPath: Map<string, AssetSource> } | null = null;
+
+/**
+ * expo-image source for a /lol-game-data/assets/... path. The same object is returned for the
+ * same path, so re-renders (every state update) don't make images reload.
+ */
 export function useAssetSource() {
   const { bridge } = useBridge();
-  return useMemo(
-    () => (path: string | null | undefined) =>
-      bridge && path ? { uri: assetUrl(bridge, path), headers: { Authorization: `Bearer ${bridge.token}` } } : undefined,
-    [bridge],
-  );
+  return useMemo(() => {
+    if (bridge && sources?.bridge !== bridge) sources = { bridge, byPath: new Map() };
+    return (path: string | null | undefined) => {
+      if (!bridge || !path || !sources) return undefined;
+      let src = sources.byPath.get(path);
+      if (!src) {
+        src = { uri: assetUrl(bridge, path), headers: { Authorization: `Bearer ${bridge.token}` } };
+        sources.byPath.set(path, src);
+      }
+      return src;
+    };
+  }, [bridge]);
 }
 
 export const championIcon = (id: number) => `/lol-game-data/assets/v1/champion-icons/${id}.png`;
@@ -79,6 +109,15 @@ export function useDefaultSplash(championId: number) {
 
 let cache: { key: string; data: GameData } | null = null;
 
+/** The client's descriptions carry HTML-ish markup and @placeholders@; keep readable text only. */
+const plainText = (s: string | undefined) =>
+  (s ?? '')
+    .replace(/<br\s*\/?>/gi, ' ')
+    .replace(/<[^>]+>/g, '')
+    .replace(/@[^@]*@/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
 export function useGameData(): GameData {
   const { bridge, status } = useBridge();
   const key = bridge ? `${bridge.bridgeId}:${bridge.host}` : '';
@@ -96,12 +135,18 @@ export function useGameData(): GameData {
       }
     };
     (async () => {
-      type Raw = { id: number; name: string; squarePortraitPath?: string; iconPath?: string; roles?: string[]; gameModes?: string[] };
+      type Raw = { id: number; name: string; squarePortraitPath?: string; iconPath?: string; roles?: string[]; gameModes?: string[]; shortDesc?: string };
+      type RawStyle = Raw & {
+        allowedSubStyles?: number[];
+        defaultSubStyle?: number;
+        defaultPerks?: number[];
+        slots?: { type?: string; slotLabel?: string; perks?: number[] }[];
+      };
       const [champs, spells, perks, styles] = await Promise.all([
         get<Raw[]>('/lol-game-data/assets/v1/champion-summary.json'),
         get<Raw[]>('/lol-game-data/assets/v1/summoner-spells.json'),
         get<Raw[]>('/lol-game-data/assets/v1/perks.json'),
-        get<{ styles: Raw[] }>('/lol-game-data/assets/v1/perkstyles.json'),
+        get<{ styles: RawStyle[] }>('/lol-game-data/assets/v1/perkstyles.json'),
       ]);
       if (cancelled || !champs) return;
       const champions = new Map(
@@ -111,8 +156,23 @@ export function useGameData(): GameData {
         champions,
         championList: [...champions.values()].sort((a, b) => a.name.localeCompare(b.name)),
         spells: new Map((spells ?? []).map((s) => [s.id, { id: s.id, name: s.name, icon: s.iconPath ?? '', gameModes: s.gameModes ?? [] }])),
-        perks: new Map((perks ?? []).map((p) => [p.id, { id: p.id, name: p.name, icon: p.iconPath ?? '' }])),
-        styles: new Map((styles?.styles ?? []).map((s) => [s.id, { id: s.id, name: s.name, icon: s.iconPath ?? '' }])),
+        perks: new Map((perks ?? []).map((p) => [p.id, { id: p.id, name: p.name, icon: p.iconPath ?? '', desc: plainText(p.shortDesc) }])),
+        styles: new Map(
+          (styles?.styles ?? []).map((s) => {
+            const slots = s.slots ?? [];
+            const style: RuneStyle = {
+              id: s.id,
+              name: s.name,
+              icon: s.iconPath ?? '',
+              allowedSubStyles: s.allowedSubStyles ?? [],
+              defaultSubStyle: s.defaultSubStyle ?? 0,
+              defaultPerks: s.defaultPerks ?? [],
+              runeRows: slots.filter((x) => x.type !== 'kStatMod').map((x) => x.perks ?? []),
+              shardRows: slots.filter((x) => x.type === 'kStatMod').map((x) => ({ label: x.slotLabel ?? '', perks: x.perks ?? [] })),
+            };
+            return [s.id, style];
+          }),
+        ),
       };
       cache = { key, data: next };
       setData(next);

@@ -28,6 +28,7 @@ export default function RootLayout() {
           <Stack.Screen name="spells" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
           <Stack.Screen name="skins" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
           <Stack.Screen name="runes" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+          <Stack.Screen name="rune-editor" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
         </Stack>
       </BridgeProvider>
     </SafeAreaProvider>

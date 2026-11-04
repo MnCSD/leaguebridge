@@ -33,7 +33,7 @@ export interface ChampSelectDeps {
 const ACTIONS = '/lol-champ-select/v1/session/actions';
 const MY_SELECTION = '/lol-champ-select/v1/session/my-selection';
 
-type ChampCommand = Exclude<Command, { type: 'accept' | 'decline' }>;
+type ChampCommand = Exclude<Command, { type: 'accept' | 'decline' | 'findMatch' | 'leaveQueue' }>;
 
 export class ChampSelectCommands {
   constructor(private readonly deps: ChampSelectDeps) {}

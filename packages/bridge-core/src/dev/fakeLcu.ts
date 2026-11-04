@@ -32,6 +32,9 @@ export interface FakeLcuOptions {
   log?: (msg: string) => void;
 }
 
+const SEARCH_URI = '/lol-matchmaking/v1/search';
+const LOBBY_SEARCH = '/lol-lobby/v2/lobby/matchmaking/search';
+
 const NOT_FOUND = { errorCode: 'RPC_ERROR', httpStatus: 404, implementationDetails: {}, message: 'Not found' };
 
 let cachedCert: Promise<{ key: string; cert: string }> | null = null;
@@ -141,12 +144,21 @@ export class FakeLcu {
     this.clearTimers();
     this.readyCheck = null;
     this.setPhase('Matchmaking');
+    this.emit(SEARCH_URI, 'Update', { searchState: 'Searching', timeInQueue: 0, estimatedQueueTime: 90 });
     this.queueTimer = setTimeout(() => this.pop(), popAfterMs);
+  }
+
+  /** Stop searching (Leave Queue), back to the lobby. */
+  leaveQueue() {
+    this.clearTimers();
+    this.emit(SEARCH_URI, 'Update', { searchState: 'Invalid' });
+    this.setPhase(this.lobby ? 'Lobby' : 'None');
   }
 
   /** A match is found. `startTimer` > 0 pretends the pop has already been up for that many seconds. */
   pop(startTimer = 0) {
     this.clearTimers();
+    this.emit(SEARCH_URI, 'Update', { searchState: 'Found', timeInQueue: 0, estimatedQueueTime: 90 });
     this.setPhase('ReadyCheck');
     this.readyCheck = { state: 'InProgress', playerResponse: 'None', timer: startTimer, declinerIds: [] };
     this.emitReadyCheck();
@@ -187,11 +199,15 @@ export class FakeLcu {
     return true;
   }
 
-  /** Me + party members (by puuid). Their names are only available via the summoner lookup. */
-  setLobby(memberPuuids: string[]) {
+  /**
+   * Me + party members (by puuid). Their names are only available via the summoner lookup.
+   * `meLeader: false` makes the first other member the leader.
+   */
+  setLobby(memberPuuids: string[], { meLeader = true }: { meLeader?: boolean } = {}) {
+    const leader = meLeader || memberPuuids.length === 0 ? 0 : 1;
     const member = (puuid: string, i: number) => ({
       puuid,
-      isLeader: i === 0,
+      isLeader: i === leader,
       isBot: false,
       ready: true,
       summonerIconId: 1,
@@ -229,6 +245,7 @@ export class FakeLcu {
     this.clearTimers();
     this.readyCheck = null;
     this.emit(READY_CHECK_URI, 'Delete', null);
+    this.emit(SEARCH_URI, 'Delete', null);
     this.setPhase(nextPhase);
   }
 
@@ -302,6 +319,18 @@ export class FakeLcu {
         return send(200, this.phase);
       case `GET ${READY_CHECK_URI}`:
         return this.readyCheck ? send(200, this.readyCheck) : send(404, NOT_FOUND);
+      // Like the real client: only the party leader of a lobby that can start may queue.
+      case `POST ${LOBBY_SEARCH}`: {
+        const lobby = this.lobby as { canStartActivity?: boolean; localMember?: { isLeader?: boolean } } | null;
+        if (!lobby || this.phase !== 'Lobby') return send(400, { errorCode: 'RPC_ERROR', httpStatus: 400, message: 'INVALID_LOBBY' });
+        if (!lobby.localMember?.isLeader || !lobby.canStartActivity) return send(403, { errorCode: 'RPC_ERROR', httpStatus: 403, message: 'CANNOT_START' });
+        this.queue();
+        return send(204);
+      }
+      case `DELETE ${LOBBY_SEARCH}`:
+        if (this.phase !== 'Matchmaking') return send(400, { errorCode: 'RPC_ERROR', httpStatus: 400, message: 'NOT_IN_QUEUE' });
+        this.leaveQueue();
+        return send(204);
       case `POST ${READY_CHECK_URI}/accept`:
       case `POST ${READY_CHECK_URI}/decline`:
         if (!this.readyCheck) return send(404, NOT_FOUND);

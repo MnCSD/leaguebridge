@@ -1,9 +1,10 @@
 /** Play (profile, lobby, queue), Runes and Settings tabs, with a floating glass tab bar. */
 import type { BridgeState, LobbyMember } from '@league-remote/protocol';
 import { BlurView } from 'expo-blur';
+import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useBridge, useElapsed } from '@/bridge/BridgeProvider';
+import { useBridge, useElapsed, useSend } from '@/bridge/BridgeProvider';
 import { profileIcon } from '@/bridge/gameData';
 import { Button, Card, Eyebrow, FadeIn, GameImage, Icon, LiveDot, Screen, Spinner, TopBar, type IconName } from '@/ui/components';
 import { colors, fonts, formatClock, radius, type } from '@/ui/theme';
@@ -70,18 +71,28 @@ function Profile({ state }: { state: BridgeState }) {
 function Queue({ state }: { state: BridgeState }) {
   const mm = state.matchmaking!;
   const elapsed = useElapsed(mm.startedAt);
+  const send = useSend();
+  const [busy, setBusy] = useState(false);
   return (
     <FadeIn>
-      <Card style={{ alignItems: 'center', paddingVertical: 28, gap: 18 }}>
+      <Card style={{ alignItems: 'center', paddingVertical: 28, paddingHorizontal: 20, gap: 18 }}>
         <View style={{ width: 210, height: 210, alignItems: 'center', justifyContent: 'center' }}>
           <Spinner size={210} />
           <Eyebrow color={colors.tealLight}>In queue</Eyebrow>
           <Text style={[type.number, { fontSize: 52, lineHeight: 58 }]}>{formatClock(elapsed)}</Text>
           {mm.estimatedMs ? <Text style={type.small}>Estimated {formatClock(mm.estimatedMs)}</Text> : null}
         </View>
-        <Text style={[type.small, { textAlign: 'center', paddingHorizontal: 24 }]}>
-          Your phone buzzes when a match is found. Leave the queue from your PC for now.
-        </Text>
+        <Text style={[type.small, { textAlign: 'center', paddingHorizontal: 4 }]}>Your phone buzzes when a match is found.</Text>
+        <Button
+          label="Leave queue"
+          kind="ghost"
+          busy={busy}
+          style={{ alignSelf: 'stretch' }}
+          onPress={() => {
+            setBusy(true);
+            void send({ type: 'leaveQueue' }).finally(() => setBusy(false));
+          }}
+        />
       </Card>
     </FadeIn>
   );
@@ -92,6 +103,11 @@ const POSITION: Record<string, string> = { TOP: 'Top', JUNGLE: 'Jungle', MIDDLE:
 function Lobby({ state }: { state: BridgeState }) {
   const lobby = state.lobby!;
   const ready = lobby.members.filter((m) => m.ready).length;
+  const send = useSend();
+  const [busy, setBusy] = useState(false);
+  const isLeader = !!lobby.members.find((m) => m.isMe)?.isLeader;
+  const searching = state.phase === 'Matchmaking' || state.matchmaking?.state === 'Searching';
+  const hint = !isLeader ? 'The party leader starts the queue.' : !lobby.canStart ? 'Pick your positions in League before queueing.' : null;
   return (
     <FadeIn delay={60}>
       <Card style={{ padding: 16, gap: 12 }}>
@@ -104,11 +120,26 @@ function Lobby({ state }: { state: BridgeState }) {
         {lobby.members.map((m) => (
           <Member key={m.puuid || m.name} m={m} />
         ))}
-        {state.matchmaking?.state !== 'Searching' ? (
-          <View style={s.hint}>
-            <Icon name="info" size={18} color={colors.muted} />
-            <Text style={[type.small, { flex: 1 }]}>Start the queue on your PC. Find Match from the phone is coming soon.</Text>
-          </View>
+        {!searching ? (
+          <>
+            {hint ? (
+              <View style={s.hint}>
+                <Icon name="info" size={18} color={colors.muted} />
+                <Text style={[type.small, { flex: 1 }]}>{hint}</Text>
+              </View>
+            ) : null}
+            <Button
+              label="Find match"
+              big
+              busy={busy}
+              disabled={!isLeader || !lobby.canStart}
+              style={{ marginTop: 4 }}
+              onPress={() => {
+                setBusy(true);
+                void send({ type: 'findMatch' }).finally(() => setBusy(false));
+              }}
+            />
+          </>
         ) : null}
       </Card>
     </FadeIn>

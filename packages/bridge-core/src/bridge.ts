@@ -32,6 +32,9 @@ export interface BridgeOptions {
 }
 
 /** Read-only GETs taken on every connect, so we (and the recording) know the starting state. */
+/** Start (POST) / stop (DELETE) matchmaking for the current lobby. */
+const SEARCH_PATH = '/lol-lobby/v2/lobby/matchmaking/search';
+
 const SNAPSHOT_URIS = [
   PHASE_URI,
   READY_CHECK_URI,
@@ -167,6 +170,23 @@ export class Bridge {
         if (!rc || rc.state !== 'InProgress') throw new CommandError('INVALID_STATE', 'There is no match to accept or decline right now');
         if (rc.response !== 'None') throw new CommandError('INVALID_STATE', `You already ${rc.response.toLowerCase()} this match`);
         await this.clientRequest('POST', `/lol-matchmaking/v1/ready-check/${command.type}`);
+        return;
+      }
+      case 'findMatch': {
+        const { lobby, phase } = this.state;
+        if (!lobby) throw new CommandError('INVALID_STATE', 'Open a lobby in League first');
+        if (phase === 'Matchmaking') throw new CommandError('INVALID_STATE', "You're already in queue");
+        if (phase !== 'Lobby') throw new CommandError('INVALID_STATE', "You can't queue right now");
+        if (!lobby.members.find((m) => m.isMe)?.isLeader) throw new CommandError('NOT_ALLOWED', 'Only the party leader can start the queue');
+        if (!lobby.canStart) throw new CommandError('NOT_ALLOWED', "The lobby can't start yet (check positions and that everyone is ready)");
+        await this.clientRequest('POST', SEARCH_PATH);
+        return;
+      }
+      case 'leaveQueue': {
+        if (this.state.phase !== 'Matchmaking' && this.state.matchmaking?.state !== 'Searching') {
+          throw new CommandError('INVALID_STATE', "You're not in queue");
+        }
+        await this.clientRequest('DELETE', SEARCH_PATH);
         return;
       }
       default:

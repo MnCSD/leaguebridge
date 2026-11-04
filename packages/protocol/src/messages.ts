@@ -60,6 +60,10 @@ export type RunePageInput = z.infer<typeof RunePageInput>;
 export const Command = z.discriminatedUnion('type', [
   cmd('accept', {}),
   cmd('decline', {}),
+  /** Start matchmaking from the lobby (party leader only). */
+  cmd('findMatch', {}),
+  /** Stop searching. */
+  cmd('leaveQueue', {}),
   /** Hover a champion in my current pick (or declare intent before my turn). */
   cmd('hover', { championId: Id }),
   /** Lock in the hovered champion, or this one if given. */
