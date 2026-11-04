@@ -51,6 +51,17 @@ scan the QR code Expo prints. In the app, scan the pairing QR from the desktop a
 `npm run bridge`, or type the PC address and 6-digit code. `npm run mobile` then `w` opens a
 browser preview (no camera; images need CORS, so they only load on a phone).
 
+**Push notifications** ("Match found", "Your turn to ban/pick", even with the phone locked):
+one-time setup on the PC, signed in to your Expo account, then turn them on in the app's Settings.
+```
+cd apps\mobile
+npx eas-cli@latest login      # or: $env:EXPO_TOKEN = "<access token from expo.dev>"
+npx eas-cli@latest init       # writes the project id into app.json
+```
+Works in Expo Go on iPhone; Android needs a development build (Expo Go on Android has no remote
+push). The bridge sends them through Expo's push service (`exp.host`) only for phones that turned
+them on; what leaves the PC is the phone's push token and the alert text, nothing else.
+
 Only one bridge can run at a time (they all use port 4242). Quit the desktop app from the tray
 before running `npm run bridge`, and vice versa.
 
@@ -80,6 +91,8 @@ skins are X000 and X001 (owned), X002 (chroma, not owned), X003 (not owned).
   127.0.0.1. The lockfile password, tokens and JWTs are never logged or recorded.
 - Settings, paired devices and logs live in `%APPDATA%\LeagueRemote` (per PC, not in git).
 - Windows Firewall asks once to allow the app; allow **Private networks** so the phone can connect.
+- The only internet traffic the bridge makes: push notifications to Expo's push service, and only
+  for phones that turned them on (a token that Expo reports as gone is forgotten).
 
 ## LCU endpoints used
 
@@ -102,17 +115,14 @@ page and pages. **Rule: anything else needs a decision first.**
 | M4 Phone server + pairing | Done, tested with phone-sim |
 | M5 Champ select + runes | Done, verified on the real client (custom and normal Draft): accept, hover, ban, lock in, spells, skin, rune page. Saving a new rune page reached the client, which refused it (max pages reached), as expected |
 | M6 Desktop app + installer | Done (modern restyle, tray, notifications, Squirrel installer) |
-| M7 Phone app | Done, tested on an iPhone (Expo Go). Since then: rune page editor, Find Match / Leave Queue (fake client + browser preview; **real-client check pending**) |
+| M7 Phone app | Done, tested on an iPhone (Expo Go). Since then: rune page editor, Find Match / Leave Queue, push notifications (fake client, tests and browser preview; **real-client / real-phone check pending**) |
 
 ## Next steps
 
-1. **Real-client check of the new commands:** Find Match and Leave Queue from the phone in a
-   lobby, and editing a rune page (then: a match-pop notification while the app is in the
-   background, which needs a development build).
-2. **Small fixes seen in live tests:** custom-game bots come through as `isBot: false` with no
-   name (only the lobby marks them); `Runes: "?"` when the current page is a temporary one not in
-   the page list; the lobby briefly shows a puuid prefix before the name loads.
-3. **Deferred design features** (not in the original spec, each needs new LCU endpoints approved
+1. **Real checks:** Find Match and Leave Queue in a real lobby, editing a rune page, and push
+   notifications on the iPhone (after the `eas-cli init` setup above): lock the phone, queue,
+   wait for "Match found".
+2. **Deferred design features** (not in the original spec, each needs new LCU endpoints approved
    first): game mode select, invite a friend, position selection, plus the
    phone's "auto-apply runes" and "alert & vibrate" toggles.
 

@@ -146,7 +146,14 @@ interface RawLobbyMember {
 interface RawLobby {
   partyId?: string;
   canStartActivity?: boolean;
-  gameConfig?: { queueId?: number; showPositionSelector?: boolean; maxLobbySize?: number };
+  gameConfig?: {
+    queueId?: number;
+    showPositionSelector?: boolean;
+    maxLobbySize?: number;
+    /** Custom games: both teams, bots included ({ isBot, botChampionId }). */
+    customTeam100?: { isBot?: boolean; botChampionId?: number }[];
+    customTeam200?: { isBot?: boolean; botChampionId?: number }[];
+  };
   localMember?: RawLobbyMember;
   members?: RawLobbyMember[];
 }
@@ -330,6 +337,19 @@ function buildChampSelect(cache: LcuCache): ChampSelect | null {
     }
   }
 
+  // Champ select doesn't mark custom-game bots (playerType is "", and isHumanoid is meaningless:
+  // false for me, true for ally bots), but the lobby lists each bot with its champion.
+  // (Seen in a real custom Draft game vs bots.)
+  const lobbyConfig = (cache.lobby?.data as RawLobby | undefined)?.gameConfig;
+  const botChampions = new Set(
+    [...(lobbyConfig?.customTeam100 ?? []), ...(lobbyConfig?.customTeam200 ?? [])]
+      .filter((b) => b.isBot && b.botChampionId)
+      .map((b) => b.botChampionId!),
+  );
+  const isBot = (m: RawCsMember) =>
+    (m.playerType ?? '').toLowerCase() === 'bot' ||
+    (m.cellId !== myCellId && !m.gameName && !!m.championId && botChampions.has(m.championId));
+
   const player = (m: RawCsMember): ChampSelectPlayer => {
     // If a player has no pick action at all (seen for some bot/enemy slots), trust their championId.
     const championId = lockedPick.get(m.cellId) ?? (hasPickAction.has(m.cellId) ? 0 : (m.championId ?? 0));
@@ -348,7 +368,7 @@ function buildChampSelect(cache: LcuCache): ChampSelect | null {
       spell2Id: m.spell2Id ?? 0,
       skinId: m.selectedSkinId ?? 0,
       isMe: m.cellId === myCellId,
-      isBot: (m.playerType ?? '').toLowerCase() === 'bot',
+      isBot: isBot(m),
     };
   };
 
@@ -415,7 +435,9 @@ function buildRunes(cache: LcuCache): Runes | null {
   const pages = cache.perkPages?.data as RawPerkPage[] | undefined;
   const current = cache.currentPage?.data as RawPerkPage | undefined;
   if (!Array.isArray(pages) && !current) return null;
-  const list = Array.isArray(pages) ? pages : current ? [current] : [];
+  const list = Array.isArray(pages) ? [...pages] : [];
+  // The current page can be a temporary one the client made on lock-in, missing from /pages.
+  if (current?.id !== undefined && !list.some((p) => p.id === current.id)) list.unshift(current);
   return {
     currentPageId: current?.id ?? list.find((p) => p.current)?.id ?? null,
     pages: list.map((p) => ({

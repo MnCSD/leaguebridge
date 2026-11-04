@@ -7,6 +7,7 @@ import * as Device from 'expo-device';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { AppState } from 'react-native';
 import { BridgeClient, CommandFailed, pair, type CommandInput, type ConnectionStatus } from './client';
+import { PushSetupError, getPushToken, loadPushPreference, savePushPreference } from './notifications';
 import { forgetBridge, loadBridge, saveBridge, type SavedBridge } from './storage';
 
 interface BridgeContextValue {
@@ -22,6 +23,9 @@ interface BridgeContextValue {
   /** Last command error, shown as a banner. */
   lastError: string | null;
   clearError(): void;
+  /** Push notifications (match found, your turn) for this phone. */
+  push: { enabled: boolean; problem: string | null; busy: boolean };
+  setPushEnabled(on: boolean): Promise<void>;
 }
 
 const BridgeContext = createContext<BridgeContextValue | null>(null);
@@ -32,10 +36,29 @@ export function BridgeProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<BridgeState | null>(null);
   const [clockOffset, setClockOffset] = useState(0);
   const [lastError, setLastError] = useState<string | null>(null);
+  const [push, setPush] = useState<BridgeContextValue['push']>({ enabled: false, problem: null, busy: false });
+  const pushWanted = useRef(false);
   const client = useRef<BridgeClient | null>(null);
 
   useEffect(() => {
     loadBridge().then(setBridge);
+    loadPushPreference().then((on) => {
+      pushWanted.current = on;
+      setPush((p) => ({ ...p, enabled: on }));
+    });
+  }, []);
+
+  /** Gives the bridge this phone's push token (or null to stop). Errors go to push.problem. */
+  const syncPush = useCallback(async (askPermission: boolean) => {
+    const c = client.current;
+    if (!c) return;
+    try {
+      const token = pushWanted.current ? await getPushToken(askPermission) : null;
+      await c.send({ type: 'registerPush', token });
+      setPush((p) => ({ ...p, problem: null }));
+    } catch (err) {
+      setPush((p) => ({ ...p, problem: err instanceof PushSetupError || err instanceof CommandFailed ? err.message : `Notifications failed: ${(err as Error).message}` }));
+    }
   }, []);
 
   // One client per paired bridge.
@@ -47,7 +70,12 @@ export function BridgeProvider({ children }: { children: ReactNode }) {
         setState(s);
         setClockOffset(offset);
       },
-      welcome: () => setLastError(null),
+      welcome: () => {
+        setLastError(null);
+        // Sync on every connection: the token can change, and a switch flipped while offline
+        // (on or off) must still reach the PC.
+        void syncPush(false);
+      },
     });
     client.current = c;
     c.connect();
@@ -58,7 +86,18 @@ export function BridgeProvider({ children }: { children: ReactNode }) {
       client.current = null;
       setState(null);
     };
-  }, [bridge]);
+  }, [bridge, syncPush]);
+
+  const setPushEnabled = useCallback(
+    async (on: boolean) => {
+      pushWanted.current = on;
+      setPush((p) => ({ ...p, enabled: on, busy: true, problem: null }));
+      await savePushPreference(on);
+      await syncPush(true);
+      setPush((p) => ({ ...p, busy: false }));
+    },
+    [syncPush],
+  );
 
   const pairWith = useCallback(async (target: { host: string; port: number }, code: string) => {
     const name = Device.deviceName ?? Device.modelName ?? 'Phone';
@@ -85,8 +124,8 @@ export function BridgeProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo<BridgeContextValue>(
-    () => ({ bridge, status, state, clockOffset, pairWith, unpair, send, lastError, clearError: () => setLastError(null) }),
-    [bridge, status, state, clockOffset, pairWith, unpair, send, lastError],
+    () => ({ bridge, status, state, clockOffset, pairWith, unpair, send, lastError, clearError: () => setLastError(null), push, setPushEnabled }),
+    [bridge, status, state, clockOffset, pairWith, unpair, send, lastError, push, setPushEnabled],
   );
   return <BridgeContext.Provider value={value}>{children}</BridgeContext.Provider>;
 }

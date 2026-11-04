@@ -12,6 +12,8 @@ export interface PairedDevice {
   tokenHash: string;
   pairedAt: string;
   lastSeenAt: string | null;
+  /** Expo push token, when the phone turned notifications on. */
+  pushToken?: string;
 }
 
 export interface BridgeConfig {

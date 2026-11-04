@@ -6,7 +6,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBridge, useElapsed, useSend } from '@/bridge/BridgeProvider';
 import { profileIcon } from '@/bridge/gameData';
-import { Button, Card, Eyebrow, FadeIn, GameImage, Icon, LiveDot, Screen, Spinner, TopBar, type IconName } from '@/ui/components';
+import { Button, Card, Eyebrow, FadeIn, GameImage, Icon, LiveDot, Screen, Spinner, Switch, TopBar, type IconName } from '@/ui/components';
 import { colors, fonts, formatClock, radius, type } from '@/ui/theme';
 import { RunePageList } from './RunePageList';
 
@@ -202,10 +202,28 @@ function RunesTab() {
 }
 
 function SettingsTab() {
-  const { bridge, status, unpair } = useBridge();
+  const { bridge, status, unpair, push, setPushEnabled } = useBridge();
   return (
     <>
       <Text style={[type.hero, { fontSize: 30, paddingTop: 4 }]}>Settings</Text>
+      <Card style={{ padding: 18, gap: 12 }}>
+        <Eyebrow>Notifications</Eyebrow>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+          <View style={{ flex: 1, gap: 3 }}>
+            <Text style={[type.body, { fontFamily: fonts.semi }]}>Match found & your turn</Text>
+            <Text style={type.small}>Buzz me even when the app is closed or the phone is locked.</Text>
+          </View>
+          <Switch value={push.enabled} onChange={(on) => void setPushEnabled(on)} label="Match found and your turn notifications" />
+        </View>
+        {push.problem ? (
+          <View style={s.hint}>
+            <Icon name="info" size={18} color={colors.danger} />
+            <Text style={[type.small, { flex: 1, color: colors.text }]}>{push.problem}</Text>
+          </View>
+        ) : push.enabled && !push.busy ? (
+          <Text style={[type.small, { color: colors.faint }]}>Sent by your PC through Expo's push service. Only the alert text leaves your PC.</Text>
+        ) : null}
+      </Card>
       <Card style={{ padding: 18, gap: 14 }}>
         <Eyebrow>Paired PC</Eyebrow>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>

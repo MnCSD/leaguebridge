@@ -189,6 +189,9 @@ export class Bridge {
         await this.clientRequest('DELETE', SEARCH_PATH);
         return;
       }
+      case 'registerPush':
+        // Per-device: the phone server handles it (it knows which device asked).
+        throw new CommandError('NOT_IMPLEMENTED', 'Notifications are handled by the phone server');
       default:
         return this.champSelect.run(command);
     }

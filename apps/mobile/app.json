@@ -55,6 +55,13 @@
           "image": "./assets/icon.png",
           "imageWidth": 120
         }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#0AC8B9",
+          "defaultChannel": "match"
+        }
       ]
     ],
     "experiments": {

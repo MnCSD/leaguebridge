@@ -11,6 +11,7 @@ import { FakeLcu } from '../dev/fakeLcu';
 import { DEFAULT_AUTO_ACCEPT } from '../gameflow/autoAccept';
 import { ConfigStore } from './config';
 import { PhoneServer } from './phoneServer';
+import type { PushMessage } from './push';
 import { connectPhone, type TestPhone } from './testClient';
 
 const log = pino({ level: 'silent' });
@@ -29,9 +30,11 @@ let bridge: Bridge;
 let server: PhoneServer;
 let phone: TestPhone;
 let token: string;
+let pushes: PushMessage[][];
 
 beforeEach(async () => {
   dir = await mkdtemp(join(tmpdir(), 'e2e-'));
+  pushes = [];
   fake = new FakeLcu({ dir: join(dir, 'league') });
   await fake.start();
   fake.setPhase('Lobby');
@@ -51,6 +54,10 @@ beforeEach(async () => {
     getState: () => bridge.state,
     handleCommand: (c) => bridge.handleCommand(c),
     fetchAsset: (p) => bridge.fetchAsset(p),
+    sendPush: async (msgs) => {
+      pushes.push(msgs);
+      return msgs.map(() => ({ status: 'ok' as const }));
+    },
   });
   const port = await server.start();
   bridge.start();
@@ -112,6 +119,26 @@ describe('phone <-> bridge <-> League client', () => {
     phone.send({ type: 'lockIn', id: 'l1', championId: 7 });
     expect(await phone.next('result')).toMatchObject({ id: 'l1' });
     await stateWhere((m) => m.state.champSelect?.myTeam.find((p) => p.isMe)?.championId === 7);
+  });
+
+  it('the phone turns notifications on; a pop sends one push to it', async () => {
+    phone.send({ type: 'registerPush', id: 'p0', token: 'not-a-token' });
+    expect(await phone.next('error')).toMatchObject({ id: 'p0', code: 'BAD_MESSAGE' });
+    phone.send({ type: 'registerPush', id: 'p1', token: 'ExponentPushToken[e2e]' });
+    expect(await phone.next('result')).toMatchObject({ id: 'p1' });
+
+    fake.pop();
+    await stateWhere((m) => m.state.readyCheck?.response === 'None');
+    await waitFor(() => pushes.length === 1);
+    expect(pushes[0]![0]).toMatchObject({ to: 'ExponentPushToken[e2e]', title: 'Match found' });
+
+    phone.send({ type: 'registerPush', id: 'p2', token: null });
+    await phone.next('result');
+    fake.respond('Declined');
+    fake.pop();
+    await stateWhere((m) => m.state.readyCheck?.response === 'None');
+    await new Promise((r) => setTimeout(r, 200));
+    expect(pushes).toHaveLength(1);
   });
 
   it('find match and leave queue from the phone', async () => {

@@ -226,3 +226,28 @@ describe('disconnect', () => {
     expect(store.state).toMatchObject({ client: 'disconnected', phase: 'None', lobby: null });
   });
 });
+
+describe('reducer on a real custom Draft game vs bots', () => {
+  const custom = replayFixture('custom-draft-vs-bots.jsonl');
+  const { first, all } = finder(custom);
+
+  it('every state matches the BridgeState schema', () => {
+    for (const { state } of custom) BridgeState.parse(state);
+  });
+
+  it('marks the bots (champ select has no playerType for them; the lobby lists them)', () => {
+    const cs = first((s) => s.champSelect !== null)!.state.champSelect!;
+    expect(meIn(cs).isBot).toBe(false);
+    expect(cs.myTeam.filter((p) => !p.isMe).every((p) => p.isBot)).toBe(true);
+    expect(cs.theirTeam.every((p) => p.isBot)).toBe(true);
+  });
+
+  it('names the temporary rune page the client makes on lock-in', () => {
+    // After locking in Irelia the client switched to a temporary page; it must be in the list.
+    const withTemp = all((s) => !!s.runes?.currentPageId && s.runes.pages.some((p) => p.isTemporary));
+    expect(withTemp.length).toBeGreaterThan(0);
+    for (const { state } of all((s) => s.runes?.currentPageId != null)) {
+      expect(state.runes!.pages.map((p) => p.id)).toContain(state.runes!.currentPageId);
+    }
+  });
+});

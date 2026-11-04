@@ -75,6 +75,11 @@ export const Command = z.discriminatedUnion('type', [
   cmd('setRunePage', { pageId: Id }),
   /** Create a page (no pageId) or overwrite one (pageId). */
   cmd('saveRunePage', { pageId: Id.optional(), page: RunePageInput }),
+  /**
+   * Turn push notifications (match found, your turn) on for this phone with its Expo push token,
+   * or off with null. The bridge sends them through Expo's push service.
+   */
+  cmd('registerPush', { token: z.string().max(200).nullable() }),
 ]);
 export type Command = z.infer<typeof Command>;
 export type CommandType = Command['type'];

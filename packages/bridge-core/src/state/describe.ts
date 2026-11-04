@@ -15,7 +15,7 @@ export function describeState(s: BridgeState): Record<string, string | null> {
     queue: s.queue ? `Queue type: ${s.queue.name} (#${s.queue.id}, ${s.queue.category})` : null,
     lobby: s.lobby
       ? `Lobby: ${s.lobby.members.length}/${s.lobby.maxSize} | ` +
-        s.lobby.members.map((m) => `${m.name ?? m.puuid.slice(0, 8)}${m.isLeader ? ' (leader)' : ''}${m.ready ? '' : ' (not ready)'}`).join(', ')
+        s.lobby.members.map((m) => `${m.name ?? (m.isBot ? 'Bot' : m.isMe ? 'you' : '…')}${m.isLeader ? ' (leader)' : ''}${m.ready ? '' : ' (not ready)'}`).join(', ')
       : null,
     matchmaking: s.matchmaking
       ? `Matchmaking: ${s.matchmaking.state}${s.matchmaking.estimatedMs ? ` | estimated ${Math.round(s.matchmaking.estimatedMs / 1000)}s` : ''}`

@@ -19,6 +19,7 @@ import type { ConfigStore, PairedDevice } from './config';
 import { CommandError } from './errors';
 import { isPrivateAddress, lanAddresses } from './network';
 import { PairingCodes, hashToken, newDeviceToken, tokenMatches } from './pairing';
+import { PushNotifier, isExpoPushToken, type SendPush } from './push';
 
 export interface AssetResponse {
   status: number;
@@ -46,6 +47,8 @@ export interface PhoneServerOptions {
   now?: () => number;
   /** Something the desktop UI may want to redraw: devices, connections or the pairing code changed. */
   onChange?: () => void;
+  /** For tests: replaces the call to Expo's push service. */
+  sendPush?: SendPush;
 }
 
 interface Client {
@@ -75,9 +78,11 @@ export class PhoneServer {
   private readonly assetCache = new Map<string, AssetResponse>();
   private assetCacheBytes = 0;
   private port = 0;
+  private readonly push: PushNotifier;
 
   constructor(private readonly opts: PhoneServerOptions) {
     this.pairing = new PairingCodes(opts.now);
+    this.push = new PushNotifier({ config: opts.config, log: opts.log, send: opts.sendPush });
     this.http = http.createServer((req, res) => {
       this.handleHttp(req, res).catch((err) => {
         opts.log.warn({ err: (err as Error).message }, 'HTTP handler failed');
@@ -161,6 +166,7 @@ export class PhoneServer {
 
   /** Call on every state change. Sends are merged so phones get at most ~10 per second. */
   publishState() {
+    this.push.onState(this.opts.getState());
     if (this.stateTimer) return;
     this.stateTimer = setTimeout(() => {
       this.stateTimer = null;
@@ -276,13 +282,27 @@ export class PhoneServer {
     const command = parsed.data;
     this.opts.log.info(`Phone ${client.device!.name}: ${command.type}`);
     try {
-      await this.opts.handleCommand(command, client.device!);
+      if (command.type === 'registerPush') this.registerPush(client.device!, command.token);
+      else await this.opts.handleCommand(command, client.device!);
       this.send(client, { v: PROTOCOL_VERSION, type: 'result', id: command.id, ok: true });
     } catch (err) {
       const e = err instanceof CommandError ? err : new CommandError('CLIENT_ERROR', (err as Error).message);
       this.opts.log.warn({ code: e.code }, `Command ${command.type} failed: ${e.message}`);
       this.fail(client, e.code, e.message, command.id);
     }
+  }
+
+  /** Push notifications belong to the device that asked, so the server handles this one itself. */
+  private registerPush(device: PairedDevice, token: string | null) {
+    if (token !== null && !isExpoPushToken(token)) throw new CommandError('BAD_MESSAGE', "That isn't an Expo push token");
+    this.opts.config.update((c) => {
+      const d = c.devices.find((x) => x.id === device.id);
+      if (!d) return;
+      if (token) d.pushToken = token;
+      else delete d.pushToken;
+    });
+    this.opts.log.info(`Notifications ${token ? 'on' : 'off'} for ${device.name}`);
+    this.opts.onChange?.();
   }
 
   private sendState(client: Client) {
