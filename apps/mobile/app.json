@@ -24,7 +24,13 @@
         "backgroundColor": "#070D17",
         "foregroundImage": "./assets/android-icon-foreground.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.CAMERA"
+      ],
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -37,7 +43,9 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "League Remote uses the camera to scan the pairing QR code on your PC."
+          "cameraPermission": "League Remote uses the camera to scan the pairing QR code on your PC.",
+          "microphonePermission": false,
+          "recordAudioAndroid": false
         }
       ],
       [
@@ -66,6 +74,17 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {
+        "asyncRoutes": {
+          "web": true
+        }
+      },
+      "eas": {
+        "projectId": "71f4a650-ea96-4940-bfa9-fc2cb23b73b8"
+      }
+    },
+    "owner": "mariosnik"
   }
 }
