@@ -73,7 +73,7 @@ never reach the script. Use the ready-made scripts above, or write `npm run x '-
 | Command | What it does |
 |---|---|
 | `npm run fake-lcu` | A fake League client: queue pops, Draft/Blind champ select, skins, rune pages. Keys: `p` pop, `q` queue, `a`/`d` accept/decline, `k` draft, `b` blind, `t` start turns, `o` others act, `e` end, `g` start/end a fake running game, `r` restart, `h` help. |
-| `npm run fake-game` | The same, starting straight into a fake running game (live game API on port 2999, 10x speed): kills, first blood, dragons, your death, your pentakill, baron, victory. For the phone's in-game screen. |
+| `npm run fake-game` | The same, starting straight into a fake running game (live game API on port 2999, 10x speed; `npm run fake-game -- 4 19` = 4x speed from 19:00): kills, first blood, dragons, your death, your pentakill, baron, victory. For the phone's in-game screen. |
 | `npm run bridge:fake` / `npm run desktop:fake` | Bridge / desktop app connected to the fake client. |
 | `npm run phone-sim pair <code>` | A pretend phone. Then type: `accept`, `decline`, `find`, `leave`, `hover <id>`, `lock [id]`, `ban <id>`, `spells <a> <b>`, `skin <id>`, `runes <pageId>`, `pages`, `newpage <name>`, `asset <path>`, `state`, `reconnect`, `quit`. |
 | `npm run mock -- <recording.jsonl>` | Replays a recording through the bridge (`--speed 20`, `--loop`). |

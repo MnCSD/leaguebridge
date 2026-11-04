@@ -1,18 +1,18 @@
 /**
  * In game: your own esports broadcast. Live clock, your champion and score over its splash, the
  * gold-lead graph, objectives, the event feed and both teams with items. Big events take over the
- * screen (Moments); when you die, a respawn countdown with your gold. Desk mode turns the phone
- * into an always-on dark dashboard. Everything here is what the game itself shows you.
+ * screen (Moments); when you die, a respawn countdown with your gold. Desk mode (DeskMode.tsx)
+ * turns the phone into an always-on dashboard with a background that follows the game. Everything here is what the game itself shows you.
  */
 import type { LiveEvent, LiveGame, LivePlayer, Team } from '@league-remote/protocol';
-import { useKeepAwake } from 'expo-keep-awake';
-import { useEffect, useRef, useState } from 'react';
-import { Animated, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useRef, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDefaultSplash, useGameData, type GameData } from '@/bridge/gameData';
-import { Card, Eyebrow, FadeIn, GameImage, Icon, LiveDot, Ring, Screen } from '@/ui/components';
+import { Card, Eyebrow, FadeIn, GameImage, Icon, Ring, Screen } from '@/ui/components';
 import { Logo } from '@/ui/Logo';
 import { colors, fonts, radius, type } from '@/ui/theme';
+import { DeskMode } from './DeskMode';
 import { GoldGraph } from './GoldGraph';
 import { Moments } from './Moments';
 import {
@@ -284,68 +284,6 @@ function PlayerRow({ p, data, game }: { p: LivePlayer; data: GameData; game: Liv
         </View>
       </View>
     </View>
-  );
-}
-
-// --- desk mode -----------------------------------------------------------------------------------
-
-/**
- * The phone on the desk next to the keyboard: black, huge clock and score, the gold lead and the
- * latest event. Stays awake, dims itself when nothing happens, lights up on every new event.
- */
-function DeskMode({ game, clock, onClose }: { game: LiveGame; clock: number; onClose(): void }) {
-  useKeepAwake();
-  const insets = useSafeAreaInsets();
-  const data = useGameData();
-  const me = game.players.find((p) => p.isMe);
-  const last = game.events.filter((e) => e.kind !== 'firstBlood').at(-1);
-  const glow = useRef(new Animated.Value(1)).current;
-  const lastId = useRef(last?.id);
-
-  useEffect(() => {
-    if (last && last.id !== lastId.current) {
-      lastId.current = last.id;
-      glow.setValue(1);
-    }
-    const t = setTimeout(() => Animated.timing(glow, { toValue: 0, duration: 1500, useNativeDriver: true }).start(), 10_000);
-    return () => clearTimeout(t);
-  }, [last, glow]);
-
-  const killer = playerByName(game, last?.killer ?? null);
-  return (
-    <Pressable onPress={onClose} style={{ flex: 1, backgroundColor: '#000' }} accessibilityRole="button" accessibilityLabel="Leave desk mode">
-      <Animated.View style={{ flex: 1, paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24, paddingHorizontal: 28, opacity: glow.interpolate({ inputRange: [0, 1], outputRange: [0.42, 1] }) }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <LiveDot color={game.result ? colors.gold : colors.teal} pulse={!game.result} />
-          <Text style={[type.eyebrow, { color: colors.muted }]}>{game.result ? (game.result === 'Win' ? 'Victory' : 'Defeat') : 'Live'}</Text>
-        </View>
-        <Text style={[type.number, { fontFamily: fonts.bold, fontSize: 104, lineHeight: 112, letterSpacing: -3 }]}>{formatGameTime(clock)}</Text>
-        {me ? (
-          <Text style={[type.number, { fontSize: 44, lineHeight: 50, color: colors.text }]}>
-            {me.kills} <Text style={{ color: colors.faint }}>/</Text> {me.deaths} <Text style={{ color: colors.faint }}>/</Text> {me.assists}
-          </Text>
-        ) : null}
-        <View style={{ flex: 1 }} />
-        <View style={{ gap: 6 }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' }}>
-            <Text style={[type.eyebrow, { color: colors.muted }]}>Gold lead</Text>
-            <Text style={[type.number, { fontSize: 30, color: game.goldDiff >= 0 ? colors.tealLight : '#FF8A9A' }]}>{formatGold(game.goldDiff, true)}</Text>
-          </View>
-          <GoldGraph history={game.goldHistory} current={game.goldDiff} gameTime={game.gameTime} height={110} />
-        </View>
-        {last ? (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingTop: 22 }}>
-            {killer ? <GameImage path={championIconFor(data, killer)} size={40} rounded={20} /> : null}
-            <Text style={[type.title, { flex: 1, fontSize: 20, color: teamColor(last.team, game.myTeam) }]} numberOfLines={2}>
-              {describeEvent(last)}
-            </Text>
-            <Text style={[type.number, { fontSize: 14, color: colors.faint }]}>{formatGameTime(last.time)}</Text>
-          </View>
-        ) : null}
-        <Text style={[type.small, { textAlign: 'center', paddingTop: 22, color: colors.faint }]}>Tap anywhere to leave desk mode</Text>
-      </Animated.View>
-      <Moments game={game} />
-    </Pressable>
   );
 }
 

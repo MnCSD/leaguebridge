@@ -2,8 +2,9 @@
  * `npm run fake-lcu` — an interactive fake League client. Run the bridge against it in a second
  * terminal with `npm run bridge:fake` (add `-- --auto-accept` to test auto-accept).
  *
- * `npm run fake-lcu game [speed]` starts straight into a fake running game (for the phone's
- * in-game screen); speed = game seconds per real second, default 10.
+ * `npm run fake-lcu game [speed] [startMinute]` starts straight into a fake running game (for the
+ * phone's in-game screen); speed = game seconds per real second (default 10), startMinute jumps
+ * ahead (e.g. 19 for the pentakill, 20 for baron).
  */
 import { emitKeypressEvents } from 'node:readline';
 import { FakeLcu } from '../dev/fakeLcu';
@@ -13,7 +14,7 @@ export const FAKE_LEAGUE_DIR = '.fake-league';
 
 const stamp = () => new Date().toTimeString().slice(0, 8);
 const fake = new FakeLcu({ dir: FAKE_LEAGUE_DIR, log: (m) => console.log(`${stamp()}  ${m}`) });
-const [mode, speedArg] = process.argv.slice(2);
+const [mode, speedArg, startArg] = process.argv.slice(2);
 let game: FakeLiveGame | null = null;
 
 /** Starts (or ends) a fake running game: phase InProgress + the live game API on port 2999. */
@@ -24,7 +25,7 @@ async function toggleGame() {
     fake.setPhase('EndOfGame');
     return fake.setPhase('Lobby');
   }
-  game = new FakeLiveGame({ speed: Number(speedArg) || 10 });
+  game = new FakeLiveGame({ speed: Number(speedArg) || 10, startAt: (Number(startArg) || 0) * 60 });
   try {
     await game.start();
   } catch (err) {
