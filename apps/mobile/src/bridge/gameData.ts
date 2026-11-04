@@ -42,8 +42,18 @@ export interface RuneStyle {
   shardRows: { label: string; perks: number[] }[];
 }
 
+export interface Item {
+  id: number;
+  name: string;
+  icon: string;
+  price: number;
+}
+
 export interface GameData {
   champions: Map<number, Champion>;
+  /** Champion alias ("MonkeyKing") -> champion; the live game API names champions this way. */
+  championsByAlias: Map<string, Champion>;
+  items: Map<number, Item>;
   /** Sorted by name; excludes the "None" entry (-1). */
   championList: Champion[];
   spells: Map<number, Spell>;
@@ -51,7 +61,7 @@ export interface GameData {
   styles: Map<number, RuneStyle>;
 }
 
-const EMPTY: GameData = { champions: new Map(), championList: [], spells: new Map(), perks: new Map(), styles: new Map() };
+const EMPTY: GameData = { champions: new Map(), championsByAlias: new Map(), items: new Map(), championList: [], spells: new Map(), perks: new Map(), styles: new Map() };
 
 const assetUrl = (b: Pick<SavedBridge, 'host' | 'port'>, path: string) => `http://${b.host}:${b.port}${ASSETS_PATH}${path}`;
 
@@ -135,18 +145,19 @@ export function useGameData(): GameData {
       }
     };
     (async () => {
-      type Raw = { id: number; name: string; squarePortraitPath?: string; iconPath?: string; roles?: string[]; gameModes?: string[]; shortDesc?: string };
+      type Raw = { id: number; name: string; alias?: string; squarePortraitPath?: string; iconPath?: string; roles?: string[]; gameModes?: string[]; shortDesc?: string; priceTotal?: number };
       type RawStyle = Raw & {
         allowedSubStyles?: number[];
         defaultSubStyle?: number;
         defaultPerks?: number[];
         slots?: { type?: string; slotLabel?: string; perks?: number[] }[];
       };
-      const [champs, spells, perks, styles] = await Promise.all([
+      const [champs, spells, perks, styles, items] = await Promise.all([
         get<Raw[]>('/lol-game-data/assets/v1/champion-summary.json'),
         get<Raw[]>('/lol-game-data/assets/v1/summoner-spells.json'),
         get<Raw[]>('/lol-game-data/assets/v1/perks.json'),
         get<{ styles: RawStyle[] }>('/lol-game-data/assets/v1/perkstyles.json'),
+        get<Raw[]>('/lol-game-data/assets/v1/items.json'),
       ]);
       if (cancelled || !champs) return;
       const champions = new Map(
@@ -154,6 +165,8 @@ export function useGameData(): GameData {
       );
       const next: GameData = {
         champions,
+        championsByAlias: new Map(champs.filter((c) => c.id > 0 && c.alias).map((c) => [c.alias!, champions.get(c.id)!])),
+        items: new Map((items ?? []).map((i) => [i.id, { id: i.id, name: i.name, icon: i.iconPath ?? '', price: i.priceTotal ?? 0 }])),
         championList: [...champions.values()].sort((a, b) => a.name.localeCompare(b.name)),
         spells: new Map((spells ?? []).map((s) => [s.id, { id: s.id, name: s.name, icon: s.iconPath ?? '', gameModes: s.gameModes ?? [] }])),
         perks: new Map((perks ?? []).map((p) => [p.id, { id: p.id, name: p.name, icon: p.iconPath ?? '', desc: plainText(p.shortDesc) }])),

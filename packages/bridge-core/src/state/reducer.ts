@@ -15,12 +15,14 @@ import {
   type BridgeState,
   type ChampSelect,
   type ChampSelectPlayer,
+  type LiveGame,
   type Lobby,
   type Me,
   type Queue,
   type Runes,
   type Skin,
 } from '@league-remote/protocol';
+import { GAME_PHASES, POST_GAME_PHASES } from '../game/liveGame';
 
 export const URIS = {
   phase: '/lol-gameflow/v1/gameflow-phase',
@@ -39,6 +41,8 @@ export const URIS = {
   skins: '/lol-champ-select/v1/skin-carousel-skins',
   perkPages: '/lol-perks/v1/pages',
   currentPage: '/lol-perks/v1/currentpage',
+  /** Not a client endpoint: the running game, already normalized (game/liveGame.ts). */
+  liveGame: 'bridge://live-game',
 } as const;
 
 type Key = keyof typeof URIS;
@@ -88,6 +92,7 @@ export function buildState(cache: LcuCache, client: BridgeState['client'], prev?
     // champ select session (seen in recordings), so the phase decides.
     champSelect: phase === 'ChampSelect' ? buildChampSelect(cache) : null,
     runes: buildRunes(cache),
+    game: GAME_PHASES.has(phase) || POST_GAME_PHASES.has(phase) ? ((cache.liveGame?.data as LiveGame | undefined) ?? null) : null,
   };
   return prev ? stabilizeTimers(next, prev) : next;
 }

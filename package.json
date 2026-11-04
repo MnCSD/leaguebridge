@@ -15,6 +15,7 @@
     "phone-sim": "tsx packages/bridge-core/src/tools/phone-sim.ts",
     "make-fixture": "tsx packages/bridge-core/src/tools/make-fixture.ts",
     "fake-lcu": "tsx packages/bridge-core/src/tools/fake-lcu.ts",
+    "fake-game": "tsx packages/bridge-core/src/tools/fake-lcu.ts game",
     "sanitize": "tsx packages/bridge-core/src/tools/sanitize.ts",
     "test": "vitest run",
     "test:watch": "vitest",

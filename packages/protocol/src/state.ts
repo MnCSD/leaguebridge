@@ -184,6 +184,102 @@ export const Runes = z.object({
 });
 export type Runes = z.infer<typeof Runes>;
 
+// --- live game (Riot's Live Client Data API on the PC, port 2999, while a game runs) -------------
+
+/** Riot's team names: ORDER = blue side, CHAOS = red side. */
+export const Team = z.enum(['ORDER', 'CHAOS']);
+export type Team = z.infer<typeof Team>;
+
+export const LivePlayer = z.object({
+  /** Riot ID game name (no tag). */
+  name: z.string(),
+  /** Champion alias as in game data (e.g. "MonkeyKing"); the phone maps it to an id. */
+  champion: z.string(),
+  championName: z.string(),
+  team: Team,
+  /** "TOP", "JUNGLE", "MIDDLE", "BOTTOM", "UTILITY", or null. */
+  position: z.string().nullable(),
+  level: z.number(),
+  kills: z.number(),
+  deaths: z.number(),
+  assists: z.number(),
+  cs: z.number(),
+  wardScore: z.number(),
+  /** Item ids in slot order (trinket included). */
+  items: z.array(Id),
+  /** Total gold value of their items: the usual way to compare teams (live gold isn't shown). */
+  itemGold: z.number(),
+  isDead: z.boolean(),
+  respawnSeconds: z.number(),
+  isMe: z.boolean(),
+  isBot: z.boolean(),
+});
+export type LivePlayer = z.infer<typeof LivePlayer>;
+
+export const LIVE_EVENT_KINDS = [
+  'kill',
+  'firstBlood',
+  'multikill',
+  'ace',
+  'dragon',
+  'baron',
+  'herald',
+  'grubs',
+  'turret',
+  'inhibitor',
+  'gameEnd',
+] as const;
+
+export const LiveEvent = z.object({
+  /** Riot's EventID: increases, so the phone can tell new events from ones it has seen. */
+  id: Id,
+  /** Game time in seconds. */
+  time: z.number(),
+  kind: z.enum(LIVE_EVENT_KINDS),
+  /** Player names (LivePlayer.name), or null for minions/turrets/monsters. */
+  killer: z.string().nullable(),
+  victim: z.string().nullable(),
+  assisters: z.array(z.string()),
+  /** The team that gained from it (killer's team, the acing team, the team that took the tower). */
+  team: Team.nullable(),
+  /** Dragon type ("Fire", "Elder"...), multikill streak ("2".."5"), or game result ("Win"/"Lose"). */
+  detail: z.string().nullable(),
+  stolen: z.boolean(),
+});
+export type LiveEvent = z.infer<typeof LiveEvent>;
+
+const TeamObjectives = z.object({
+  /** Dragon types in the order taken. */
+  dragons: z.array(z.string()),
+  barons: z.number(),
+  heralds: z.number(),
+  grubs: z.number(),
+  towers: z.number(),
+  inhibitors: z.number(),
+});
+
+export const LiveGame = z.object({
+  /** Game clock in seconds, as of `receivedAt` (bridge clock): the phone ticks it forward. */
+  gameTime: z.number(),
+  receivedAt: Epoch,
+  /** "CLASSIC", "ARAM", ... */
+  mode: z.string(),
+  myTeam: Team,
+  /** My current (spendable) gold. */
+  myGold: z.number(),
+  players: z.array(LivePlayer),
+  /** Latest events, oldest first (at most 40). */
+  events: z.array(LiveEvent),
+  /** My team's item gold minus the enemy's. */
+  goldDiff: z.number(),
+  /** [gameTime seconds, goldDiff] samples for the graph, every 15s of game time. */
+  goldHistory: z.array(z.tuple([z.number(), z.number()])),
+  objectives: z.object({ ORDER: TeamObjectives, CHAOS: TeamObjectives }),
+  /** Set when the game ended, from my point of view. */
+  result: z.enum(['Win', 'Lose']).nullable(),
+});
+export type LiveGame = z.infer<typeof LiveGame>;
+
 export const BridgeState = z.object({
   v: z.literal(STATE_VERSION),
   /** Is the bridge connected to the League client? */
@@ -197,6 +293,8 @@ export const BridgeState = z.object({
   readyCheck: ReadyCheck.nullable(),
   champSelect: ChampSelect.nullable(),
   runes: Runes.nullable(),
+  /** The running game, from Riot's Live Client Data API. null outside a game (or while loading). */
+  game: LiveGame.nullable().default(null),
 });
 export type BridgeState = z.infer<typeof BridgeState>;
 
@@ -211,4 +309,5 @@ export const EMPTY_STATE: BridgeState = {
   readyCheck: null,
   champSelect: null,
   runes: null,
+  game: null,
 };

@@ -8,6 +8,7 @@ import pino from 'pino';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { Bridge } from '../bridge';
 import { FakeLcu } from '../dev/fakeLcu';
+import { FakeLiveGame } from '../dev/fakeLiveGame';
 import { DEFAULT_AUTO_ACCEPT } from '../gameflow/autoAccept';
 import { ConfigStore } from './config';
 import { PhoneServer } from './phoneServer';
@@ -31,6 +32,7 @@ let server: PhoneServer;
 let phone: TestPhone;
 let token: string;
 let pushes: PushMessage[][];
+const liveGame = new FakeLiveGame();
 
 beforeEach(async () => {
   dir = await mkdtemp(join(tmpdir(), 'e2e-'));
@@ -45,6 +47,7 @@ beforeEach(async () => {
     pollMs: 50,
     autoAccept: { ...DEFAULT_AUTO_ACCEPT, enabled: false },
     onStateChange: () => server.publishState(),
+    fetchLiveGame: async () => liveGame.snapshot(1190),
   });
   server = new PhoneServer({
     config: new ConfigStore(join(dir, 'config.json')),
@@ -139,6 +142,18 @@ describe('phone <-> bridge <-> League client', () => {
     await stateWhere((m) => m.state.readyCheck?.response === 'None');
     await new Promise((r) => setTimeout(r, 200));
     expect(pushes).toHaveLength(1);
+  });
+
+  it('in game, the phone gets the live game; it goes away after the game', async () => {
+    fake.setPhase('InProgress');
+    const msg = await stateWhere((m) => m.state.game !== null);
+    expect(msg.state.game!.players.find((p) => p.isMe)).toMatchObject({ name: 'FakeMe', kills: 6 });
+    expect(msg.state.game!.events.some((e) => e.kind === 'ace')).toBe(true);
+    // Right after the game: the last snapshot stays (the result screen), then it goes away.
+    fake.setPhase('WaitingForStats');
+    await stateWhere((m) => m.state.phase === 'WaitingForStats' && m.state.game !== null);
+    fake.setPhase('EndOfGame');
+    await stateWhere((m) => m.state.phase === 'EndOfGame' && m.state.game === null);
   });
 
   it('find match and leave queue from the phone', async () => {

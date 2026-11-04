@@ -72,7 +72,8 @@ never reach the script. Use the ready-made scripts above, or write `npm run x '-
 
 | Command | What it does |
 |---|---|
-| `npm run fake-lcu` | A fake League client: queue pops, Draft/Blind champ select, skins, rune pages. Keys: `p` pop, `q` queue, `a`/`d` accept/decline, `k` draft, `b` blind, `t` start turns, `o` others act, `e` end, `r` restart, `h` help. |
+| `npm run fake-lcu` | A fake League client: queue pops, Draft/Blind champ select, skins, rune pages. Keys: `p` pop, `q` queue, `a`/`d` accept/decline, `k` draft, `b` blind, `t` start turns, `o` others act, `e` end, `g` start/end a fake running game, `r` restart, `h` help. |
+| `npm run fake-game` | The same, starting straight into a fake running game (live game API on port 2999, 10x speed): kills, first blood, dragons, your death, your pentakill, baron, victory. For the phone's in-game screen. |
 | `npm run bridge:fake` / `npm run desktop:fake` | Bridge / desktop app connected to the fake client. |
 | `npm run phone-sim pair <code>` | A pretend phone. Then type: `accept`, `decline`, `find`, `leave`, `hover <id>`, `lock [id]`, `ban <id>`, `spells <a> <b>`, `skin <id>`, `runes <pageId>`, `pages`, `newpage <name>`, `asset <path>`, `state`, `reconnect`, `quit`. |
 | `npm run mock -- <recording.jsonl>` | Replays a recording through the bridge (`--speed 20`, `--loop`). |
@@ -96,6 +97,11 @@ skins are X000 and X001 (owned), X002 (chroma, not owned), X003 (not owned).
 
 ## LCU endpoints used
 
+While a game runs, the bridge also reads the game's own **Live Client Data API**
+(`https://127.0.0.1:2999/liveclientdata/allgamedata`, read-only, official, self-signed certificate)
+once a second, for the phone's in-game screen. It only shows what the game itself shows you.
+
+
 Reads: gameflow phase/session, lobby, matchmaking search and ready check, champ select session
 (+ pickable/bannable/disabled champions, skin carousel), perks pages/currentpage/styles,
 current summoner, summoner by puuid (party names), chat `me`, and `/lol-game-data/...` (names and
@@ -115,13 +121,14 @@ page and pages. **Rule: anything else needs a decision first.**
 | M4 Phone server + pairing | Done, tested with phone-sim |
 | M5 Champ select + runes | Done, verified on the real client (custom and normal Draft): accept, hover, ban, lock in, spells, skin, rune page. Saving a new rune page reached the client, which refused it (max pages reached), as expected |
 | M6 Desktop app + installer | Done (modern restyle, tray, notifications, Squirrel installer) |
-| M7 Phone app | Done, tested on an iPhone (Expo Go). Since then: rune page editor, Find Match / Leave Queue, push notifications (fake client, tests and browser preview; **real-client / real-phone check pending**) |
+| M7 Phone app | Done, tested on an iPhone (Expo Go). Since then: rune page editor, Find Match / Leave Queue, push notifications, in-game broadcast screen (live scoreboard, gold graph, objectives, feed, big moments, death timer, desk mode) (fake client, tests and browser preview; **real-client / real-phone check pending**) |
 
 ## Next steps
 
 1. **Real checks:** Find Match and Leave Queue in a real lobby, editing a rune page, and push
    notifications on the iPhone (after the `eas-cli init` setup above): lock the phone, queue,
-   wait for "Match found".
+   wait for "Match found". Then a real game with the in-game screen open (the live API's event
+   fields aren't documented by Riot: check kills, dragons and towers land on the right team).
 2. **Deferred design features** (not in the original spec, each needs new LCU endpoints approved
    first): game mode select, invite a friend, position selection, plus the
    phone's "auto-apply runes" and "alert & vibrate" toggles.

@@ -1,14 +1,39 @@
 /**
  * `npm run fake-lcu` — an interactive fake League client. Run the bridge against it in a second
  * terminal with `npm run bridge:fake` (add `-- --auto-accept` to test auto-accept).
+ *
+ * `npm run fake-lcu game [speed]` starts straight into a fake running game (for the phone's
+ * in-game screen); speed = game seconds per real second, default 10.
  */
 import { emitKeypressEvents } from 'node:readline';
 import { FakeLcu } from '../dev/fakeLcu';
+import { FakeLiveGame } from '../dev/fakeLiveGame';
 
 export const FAKE_LEAGUE_DIR = '.fake-league';
 
 const stamp = () => new Date().toTimeString().slice(0, 8);
 const fake = new FakeLcu({ dir: FAKE_LEAGUE_DIR, log: (m) => console.log(`${stamp()}  ${m}`) });
+const [mode, speedArg] = process.argv.slice(2);
+let game: FakeLiveGame | null = null;
+
+/** Starts (or ends) a fake running game: phase InProgress + the live game API on port 2999. */
+async function toggleGame() {
+  if (game) {
+    await game.stop();
+    game = null;
+    fake.setPhase('EndOfGame');
+    return fake.setPhase('Lobby');
+  }
+  game = new FakeLiveGame({ speed: Number(speedArg) || 10 });
+  try {
+    await game.start();
+  } catch (err) {
+    game = null;
+    return console.log(`${stamp()}  Couldn't start the fake game on port 2999 (is a real game running?): ${(err as Error).message}`);
+  }
+  fake.setPhase('InProgress');
+  console.log(`${stamp()}  Fake game running (${Number(speedArg) || 10}x speed). Press g to end it.`);
+}
 
 const HELP = `
 Fake League client. Keys:
@@ -17,6 +42,7 @@ Fake League client. Keys:
   k  champ select: draft (you are cell 2, mid; starts in PLANNING)
   b  champ select: blind (Co-op style, everyone picks at once)
   t  start turns (PLANNING -> bans)     o  everyone else acts     e  end champ select
+  g  start / end a fake running game (live game API on port 2999, 10x speed)
   r  restart client (new port + password)                     c  close / reopen client
   h  help                 Ctrl+C  quit
 
@@ -27,6 +53,7 @@ async function main() {
   await fake.start();
   fake.setPhase('Lobby');
   console.log(HELP);
+  if (mode === 'game') await toggleGame();
 
   if (!process.stdin.isTTY) {
     console.log('(stdin is not a terminal: keyboard controls disabled)');
@@ -68,6 +95,8 @@ async function main() {
         return console.log(`${stamp()}  Others acted.`);
       case 'e':
         return fake.champ.end();
+      case 'g':
+        return toggleGame();
       case 'r':
         return fake.restart();
       case 'c':

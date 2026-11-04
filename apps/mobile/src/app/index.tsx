@@ -8,6 +8,7 @@ import { useBridge } from '@/bridge/BridgeProvider';
 import { ChampSelectScreen } from '@/screens/ChampSelect';
 import { HomeScreen, type Tab } from '@/screens/Home';
 import { InGameScreen } from '@/screens/InGame';
+import { LiveGameScreen } from '@/screens/live/LiveGame';
 import { ReadyCheckScreen } from '@/screens/ReadyCheck';
 
 const IN_GAME = new Set(['GameStart', 'InProgress', 'Reconnect', 'WaitingForStats', 'PreEndOfGame']);
@@ -21,6 +22,8 @@ export default function Main() {
 
   if (state?.readyCheck && state.readyCheck.state === 'InProgress') return <ReadyCheckScreen readyCheck={state.readyCheck} queueName={state.queue?.name} />;
   if (state?.champSelect) return <ChampSelectScreen cs={state.champSelect} />;
+  // The live broadcast as soon as the game's own API answers; a calm card while it loads.
+  if (state?.game) return <LiveGameScreen game={state.game} />;
   if (state && IN_GAME.has(state.phase)) return <InGameScreen phase={state.phase} />;
   return <HomeScreen tab={tab} onTab={setTab} />;
 }

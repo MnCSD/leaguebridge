@@ -2,6 +2,7 @@ import type { BridgeState, Command } from '@league-remote/protocol';
 import type { Logger } from 'pino';
 import { ChampSelectCommands } from './champselect/commands';
 import type { PerkStyle } from './champselect/runes';
+import { GAME_PHASES, LiveGameTracker, POST_GAME_PHASES, fetchFromGame, type FetchGame } from './game/liveGame';
 import { CommandError } from './server/errors';
 import type { AssetResponse } from './server/phoneServer';
 import { URIS } from './state/reducer';
@@ -29,12 +30,16 @@ export interface BridgeOptions {
   onStateChange?: (state: BridgeState, prev: BridgeState) => void;
   /** Mock mode only: called when the recording has finished playing. */
   onMockEnd?: () => void;
+  /** Where the game's Live Client Data API is. Default https://127.0.0.1:2999. */
+  liveClientUrl?: string;
+  /** For tests: replaces the request to the game's live API. */
+  fetchLiveGame?: FetchGame;
 }
 
-/** Read-only GETs taken on every connect, so we (and the recording) know the starting state. */
 /** Start (POST) / stop (DELETE) matchmaking for the current lobby. */
 const SEARCH_PATH = '/lol-lobby/v2/lobby/matchmaking/search';
 
+/** Read-only GETs taken on every connect, so we (and the recording) know the starting state. */
 const SNAPSHOT_URIS = [
   PHASE_URI,
   READY_CHECK_URI,
@@ -55,6 +60,7 @@ export class Bridge {
   readonly phase: PhaseTracker;
   readonly autoAccepter: AutoAccepter;
   readonly store: StateStore;
+  private readonly liveGame: LiveGameTracker;
   private http: LcuHttp | null = null;
   private clientConnected = false;
   private secretList: string[] = [];
@@ -76,8 +82,15 @@ export class Bridge {
 
     this.phase = new PhaseTracker((now, before) => log.info(`Phase: ${before ?? '?'} -> ${now}`));
     this.autoAccepter = new AutoAccepter(opts.autoAccept, () => this.acceptReadyCheck(), log);
+    this.liveGame = new LiveGameTracker({
+      fetch: opts.fetchLiveGame ?? fetchFromGame(opts.liveClientUrl),
+      onUpdate: (game) => this.store.update(URIS.liveGame, game),
+    });
     this.store = new StateStore((state, prev) => {
       this.lookUpLobbyNames(state);
+      // The game's own API only exists while a game runs: poll it in those phases only.
+      if (state.client === 'connected' && GAME_PHASES.has(state.phase)) this.liveGame.start();
+      else this.liveGame.stop(state.client === 'connected' && POST_GAME_PHASES.has(state.phase));
       opts.onStateChange?.(state, prev);
     });
 
@@ -137,6 +150,7 @@ export class Bridge {
 
   stop() {
     this.autoAccepter.reset();
+    this.liveGame.stop();
     this.source.stop();
   }
 
